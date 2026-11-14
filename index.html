@@ -265,7 +265,8 @@ function upsertClient(i){const name=(i.client||'').trim();if(!name)return;let c=
 function upsertProducts(i){i.items.forEach(it=>{const n=(it.d||'').trim();if(!n||!(+it.p))return;const p=S.products.find(p=>p.name===n);if(p)p.price=+it.p;else S.products.push({id:uid(),name:n,price:+it.p})})}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2000)}
 function money(v){const c=CUR[S.biz?.cur||'OMR'];return (Number(v)||0).toLocaleString('en-US',{minimumFractionDigits:c.d,maximumFractionDigits:c.d})+' '+c.s}
-function calc(inv){const sub=inv.items.reduce((a,i)=>a+(+i.q||0)*(+i.p||0),0);const disc=+inv.disc||0;const base=Math.max(sub-disc,0);const vat=inv.vat?base*0.05:0;return{sub,disc,vat,total:base+vat}}
+function calc(inv){const sub=inv.items.reduce((a,i)=>a+(+i.q||0)*(+i.p||0),0);const disc=+inv.disc||0;const base=Math.max(sub-disc,0);const vat=inv.vat?base*0.05:0;const total=base+vat;const dep=Math.min(+inv.dep||0,total);return{sub,disc,vat,total,dep,rem:Math.max(total-dep,0)}}
+const owed=i=>i.status==='paid'?0:calc(i).rem;
 const waNum=p=>(p||'').replace(/\D/g,'').replace(/^(?=9|7)(\d{8})$/,'968$1');
 const initial=s=>(String(s||'؟').trim()[0]||'؟');
 
@@ -354,7 +355,7 @@ function sortDocs(a){return a.sort((x,y)=>(y.date||'').localeCompare(x.date||'')
 function renderHome(){
   const b=S.biz,invs=S.invoices.filter(i=>!isQ(i));
   const tot=invs.reduce((a,i)=>a+calc(i).total,0);
-  const due=invs.filter(i=>i.status!=='paid').reduce((a,i)=>a+calc(i).total,0);
+  const due=invs.filter(i=>i.status!=='paid').reduce((a,i)=>a+owed(i),0);
   const late=invs.filter(overdue).length;
   const F={all:i=>true,due:i=>!isQ(i)&&i.status!=='paid',late:overdue,paid:i=>!isQ(i)&&i.status==='paid',quote:isQ};
   const s=search.trim();
@@ -406,18 +407,20 @@ function renderEdit(){
      <button class="add" id="additem">+ إضافة بند</button></div>
    <div class="sec"><h3>الخصم والضريبة</h3><div class="grid2">
      <label class="f">خصم (مبلغ)<input class="in num" id="disc" type="number" step="any" inputmode="decimal" value="${cur.disc||''}" placeholder="0"></label>
+     <label class="f">العربون (مدفوع مقدمًا)<input class="in num" id="dep" type="number" step="any" inputmode="decimal" value="${cur.dep||''}" placeholder="0"></label>
      <label class="f">ضريبة القيمة المضافة<select class="in" id="vat"><option value="0" ${!cur.vat?'selected':''}>بدون</option><option value="1" ${cur.vat?'selected':''}>5%</option></select></label>
      ${q?'':`<label class="f">الحالة<select class="in" id="status"><option value="due" ${cur.status!=='paid'?'selected':''}>مستحقة</option><option value="paid" ${cur.status==='paid'?'selected':''}>مدفوعة</option></select></label>`}</div></div>
    <div class="sec"><label class="f">ملاحظات<textarea class="in" id="notes" rows="2" placeholder="${q?'مثال: الأسعار تشمل التركيب':'مثال: التحويل على حساب بنك مسقط'}">${esc(cur.notes)}</textarea></label></div>
    <div class="totals" id="totals"></div>
    <div class="fab solo"><button class="btn" id="saveinv" style="width:100%">حفظ ومعاينة</button></div>`;
-  const upd=()=>{const t=calc(cur);$('#totals').innerHTML=`<div><span>المجموع</span><span class="num">${money(t.sub)}</span></div>${t.disc?`<div><span>الخصم</span><span class="num">- ${money(t.disc)}</span></div>`:''}${cur.vat?`<div><span>الضريبة 5%</span><span class="num">${money(t.vat)}</span></div>`:''}<div class="g"><span>الإجمالي</span><span class="num">${money(t.total)}</span></div>`};
+  const upd=()=>{const t=calc(cur),ex=t.disc||cur.vat;$('#totals').innerHTML=`${ex?`<div><span>المجموع</span><span class="num">${money(t.sub)}</span></div>`:''}${t.disc?`<div><span>الخصم</span><span class="num">- ${money(t.disc)}</span></div>`:''}${cur.vat?`<div><span>الضريبة 5%</span><span class="num">${money(t.vat)}</span></div>`:''}${t.dep?`<div><span>العربون</span><span class="num">${money(t.dep)}</span></div><div><span>المتبقي</span><b class="num" style="color:var(--late)">${money(t.rem)}</b></div>`:''}<div class="g"><span>الإجمالي</span><span class="num">${money(t.total)}</span></div>`};
   upd();
   ['client','cphone','caddr','date','due','notes'].forEach(id=>$('#'+id).oninput=e=>cur[id]=e.target.value);
   const fillClient=c=>{cur.client=c.name;if(c.phone)cur.cphone=c.phone;if(c.addr)cur.caddr=c.addr;renderEdit()};
   $('#client').onchange=e=>{const c=S.clients.find(c=>c.name===e.target.value.trim());if(c)fillClient(c)};
   $$('[data-cl]').forEach(b=>b.onclick=()=>fillClient(S.clients.find(c=>c.id===b.dataset.cl)));
   $('#disc').oninput=e=>{cur.disc=+e.target.value||0;upd()};
+  $('#dep').oninput=e=>{cur.dep=+e.target.value||0;upd()};
   $('#vat').onchange=e=>{cur.vat=e.target.value==='1';upd()};
   $('#status')&&($('#status').onchange=e=>cur.status=e.target.value);
   const fld=(k,f)=>document.querySelector(`#items [data-k="${k}"][data-f="${f}"]`);
@@ -469,8 +472,8 @@ function paperVars(){
 /* ---------- invoice view ---------- */
 function invText(i){const t=calc(i),b=S.biz,q=isQ(i);let s=`*${b.name}*\n${q?'عرض سعر':'فاتورة'} رقم #${docNo(i)}\nالتاريخ: ${i.date}${i.due?`\n${q?'صالح حتى':'الاستحقاق'}: ${i.due}`:''}\nالعميل: ${i.client}\n\n`;
   i.items.forEach(it=>s+=`• ${it.d} × ${it.q} = ${money(it.q*it.p)}\n`);
-  s+=`\nالمجموع: ${money(t.sub)}${t.disc?`\nالخصم: ${money(t.disc)}`:''}${i.vat?`\nالضريبة 5%: ${money(t.vat)}`:''}\n*الإجمالي: ${money(t.total)}*${q?'':`\nالحالة: ${i.status==='paid'?'مدفوعة':'مستحقة'}`}${i.notes?`\n\n${i.notes}`:''}${b.phone?`\n📞 ${b.phone}`:''}`;return s}
-function remindText(i){const b=S.biz;return `السلام عليكم ${i.client||''}،\nنذكّركم بلطف بالفاتورة رقم #${docNo(i)} بتاريخ ${i.date} بمبلغ *${money(calc(i).total)}*${overdue(i)?`، وقد مضى على موعد استحقاقها ${daysLate(i)} يوم`:''}.\n${payRows(b).length?'\nبيانات التحويل:\n'+payRows(b).map(([l,v])=>`${l}: ${v}`).join('\n')+'\n':''}\nشاكرين تعاونكم 🌹\n${b.name}${b.phone?' · '+b.phone:''}`}
+  s+=`${t.disc||i.vat?`\nالمجموع: ${money(t.sub)}`:''}${t.disc?`\nالخصم: ${money(t.disc)}`:''}${i.vat?`\nالضريبة 5%: ${money(t.vat)}`:''}\n*الإجمالي: ${money(t.total)}*${t.dep?`\nالعربون: ${money(t.dep)}\n*المتبقي: ${money(t.rem)}*`:''}${q?'':`\nالحالة: ${i.status==='paid'?'مدفوعة':'مستحقة'}`}${i.notes?`\n\n${i.notes}`:''}${b.phone?`\n📞 ${b.phone}`:''}`;return s}
+function remindText(i){const b=S.biz;return `السلام عليكم ${i.client||''}،\nنذكّركم بلطف بالفاتورة رقم #${docNo(i)} بتاريخ ${i.date} بمبلغ *${money(calc(i).rem)}*${overdue(i)?`، وقد مضى على موعد استحقاقها ${daysLate(i)} يوم`:''}.\n${payRows(b).length?'\nبيانات التحويل:\n'+payRows(b).map(([l,v])=>`${l}: ${v}`).join('\n')+'\n':''}\nشاكرين تعاونكم 🌹\n${b.name}${b.phone?' · '+b.phone:''}`}
 function renderView(){
   const i=cur,b=S.biz,q=isQ(i),wa=waNum(i.cphone);
   $('#app').innerHTML=`
@@ -521,7 +524,7 @@ function persist(i){const k=S.invoices.findIndex(x=>x.id===i.id);const c=JSON.pa
 const clientDocs=c=>S.invoices.filter(i=>!i.sample&&i.client===c.name);
 function renderClients(){
   const s=search.trim();
-  const rows=S.clients.map(c=>{const d=clientDocs(c).filter(i=>!isQ(i));return {c,n:d.length,tot:d.reduce((a,i)=>a+calc(i).total,0),due:d.filter(i=>i.status!=='paid').reduce((a,i)=>a+calc(i).total,0)}})
+  const rows=S.clients.map(c=>{const d=clientDocs(c).filter(i=>!isQ(i));return {c,n:d.length,tot:d.reduce((a,i)=>a+calc(i).total,0),due:d.filter(i=>i.status!=='paid').reduce((a,i)=>a+owed(i),0)}})
     .filter(r=>!s||r.c.name.includes(s)||(r.c.phone||'').includes(s)).sort((a,b)=>b.tot-a.tot||a.c.name.localeCompare(b.c.name));
   $('#app').innerHTML=`
    <div class="ptitle"><div><small>${S.clients.length} عميل</small><h1>العملاء</h1></div></div>
@@ -537,7 +540,7 @@ function renderClients(){
 }
 function renderClient(){
   const c=curC,docs=c._new?[]:sortDocs(clientDocs(S.clients.find(x=>x.id===c.id)||c));
-  const invs=docs.filter(i=>!isQ(i)),tot=invs.reduce((a,i)=>a+calc(i).total,0),due=invs.filter(i=>i.status!=='paid').reduce((a,i)=>a+calc(i).total,0);
+  const invs=docs.filter(i=>!isQ(i)),tot=invs.reduce((a,i)=>a+calc(i).total,0),due=invs.filter(i=>i.status!=='paid').reduce((a,i)=>a+owed(i),0);
   $('#app').innerHTML=`
    <div class="top"><button class="iconbtn" id="back">رجوع</button><h2>${c._new?'عميل جديد':esc(c.name)}</h2><span style="width:60px"></span></div>
    <div class="sec"><div class="grid2">
@@ -606,13 +609,13 @@ function monthStats(m){
   const T=invs.map(calc);
   return {n:invs.length,sales:T.reduce((a,t)=>a+t.total,0),vat:T.reduce((a,t)=>a+t.vat,0),
     paid:invs.filter(i=>i.status==='paid').reduce((a,i)=>a+calc(i).total,0),
-    unpaid:invs.filter(i=>i.status!=='paid').reduce((a,i)=>a+calc(i).total,0),
+    unpaid:invs.filter(i=>i.status!=='paid').reduce((a,i)=>a+owed(i),0),
     quotes:S.invoices.filter(i=>isQ(i)&&(i.date||'').startsWith(m)).length,invs};
 }
 function renderReports(){
   const st=monthStats(rmonth);
   const all=S.invoices.filter(i=>!isQ(i)&&!i.sample&&i.status!=='paid');
-  const outstanding=all.reduce((a,i)=>a+calc(i).total,0);
+  const outstanding=all.reduce((a,i)=>a+owed(i),0);
   const months=[5,4,3,2,1,0].map(k=>shiftMonth(rmonth,-k));
   const vals=months.map(m=>monthStats(m).sales),max=Math.max(...vals,1);
   const by={};st.invs.forEach(i=>{const k=i.client||'بدون اسم';by[k]=(by[k]||0)+calc(i).total});
@@ -690,7 +693,7 @@ function kit(x,c){
 }
 function stamp(x,cx,cy){x.save();x.translate(cx,cy);x.rotate(-0.1);x.strokeStyle='#1f8a4c';x.lineWidth=5;rr(x,-95,-38,190,76,14);x.stroke();x.font=`700 34px ${BF}`;x.fillStyle='#1f8a4c';x.textAlign='center';x.direction='rtl';x.fillText('مدفوعة',0,12);x.restore()}
 function payRows(b){return [['البنك',b.bank],['اسم الحساب',b.accName],['رقم الحساب',b.accNo]].filter(r=>r[1])}
-function totRows(i,t){const r=[['المجموع الفرعي',money(t.sub)]];if(t.disc)r.push(['الخصم','- '+money(t.disc)]);r.push([`الضريبة (${i.vat?5:0}%)`,money(t.vat)]);r.push(['المجموع الكلي',money(t.total),1]);return r}
+function totRows(i,t){const r=[];if(t.disc||i.vat)r.push(['المجموع الفرعي',money(t.sub)]);if(t.disc)r.push(['الخصم','- '+money(t.disc)]);if(i.vat)r.push(['الضريبة (5%)',money(t.vat)]);if(t.dep){r.push(['العربون',money(t.dep)]);r.push(['المتبقي',money(t.rem)])}r.push(['المجموع الكلي',money(t.total),1]);return r}
 function star8(x,cx,cy,r,col,lw){x.save();x.translate(cx,cy);x.strokeStyle=col;x.lineWidth=lw;x.lineJoin='round';
   for(const a of [0,Math.PI/4]){x.save();x.rotate(a);x.strokeRect(-r*0.72,-r*0.72,r*1.44,r*1.44);x.restore()}
   x.beginPath();for(let k=0;k<8;k++){const a=k*Math.PI/4+Math.PI/8,rr2=r*0.5;x.lineTo(Math.cos(a)*rr2,Math.sin(a)*rr2)}x.closePath();x.stroke();
@@ -803,10 +806,10 @@ function drawGeneric(x,i,H,c,logo){
   let ny=hy+56;
   if(logo){const s=Math.min(150/logo.width,150/logo.height);const lw=logo.width*s,lh=logo.height*s;x.drawImage(logo,R-lw,hy,lw,lh);ny=hy+lh+52}
   T(fit(b.name,700,48,800),R,ny,{size:48,w:800,f:DF,col:ink});
-  if(b.phone)T(b.phone,R,ny+48,{size:28,col:mut});
+  if(b.phone)T(b.phone,R,ny+56,{size:40,w:700,col:mut});
   T(isQ(i)?'عرض سعر':'فاتورة',L,hy+60,{size:tpl==='minimal'?96:62,w:800,f:DF,col:tpl==='band'?c['--pc']:c['--pa'],al:'left'});
-  T('#'+docNo(i),L,hy+(tpl==='minimal'?120:108),{size:28,col:mut,al:'left'});
-  let y=Math.max(ny+80,P+headH+20);if(tpl==='band')y=P+headH+60;
+  T('#'+docNo(i),L,hy+(tpl==='minimal'?136:124),{size:42,w:700,col:mut,al:'left'});
+  let y=Math.max(ny+92,P+headH+30);if(tpl==='band')y=P+headH+60;
   if(tpl==='classic'){x.fillStyle=c['--pa'];x.fillRect(L,y-30,R-L,5)}
   if(tpl==='curve'){x.fillStyle=c['--pl'];x.fillRect(L,y-30,R-L,2)}
   if(tpl==='omani'){const n=15,g=34,sx=W/2-(n-1)*g/2;for(let k=0;k<n;k++){x.save();x.translate(sx+k*g,y-20);x.rotate(Math.PI/4);x.fillStyle=k%2?c['--pt']:c['--pa'];x.fillRect(-8,-8,16,16);x.restore()}y+=20}
@@ -815,18 +818,20 @@ function drawGeneric(x,i,H,c,logo){
   let yy=y;if(i.cphone){yy+=42;T(i.cphone,R,yy,{size:26,col:c['--pm']})}if(i.caddr){yy+=40;T(fit(i.caddr,600,26),R,yy,{size:26,col:c['--pm']})}
   if(i.due)T((isQ(i)?'صالح حتى ':'الاستحقاق ')+i.due,L,y+42,{size:26,col:c['--pm'],al:'left',dir:'rtl'});
   y=Math.max(y+110,yy+70);
-  const cols=[R-14,L+560,L+340,L+14],thH=58;
+  const cols=[R-14,L+560,L+340,L+14],thH=58,tTop=y-44,vx=[L+652,L+540,L+322];
   if(tpl==='band'){x.fillStyle=c['--ps'];x.fillRect(L,y-40,R-L,thH)}
   const thc=tpl==='omani'?c['--pa']:tpl==='minimal'||tpl==='band'?c['--pi']:c['--pm'];
   T('الوصف',cols[0],y,{size:24,w:600,col:thc});T('الكمية',cols[1],y,{size:24,w:600,col:thc,al:'left'});T('السعر',cols[2],y,{size:24,w:600,col:thc,al:'left'});T('المبلغ',cols[3],y,{size:24,w:600,col:thc,al:'left'});
   if(tpl!=='band'){x.fillStyle=tpl==='omani'?c['--pa']:tpl==='minimal'?c['--pi']:c['--pl'];x.fillRect(L,y+18,R-L,tpl==='omani'||tpl==='minimal'?4:2)}
   y+=18;
   i.items.forEach((it,k)=>{if(tpl==='minimal'&&k%2===0){x.fillStyle=c['--ps'];x.fillRect(L,y,R-L,rowH)}const by=y+42;
-    T(fit(it.d,R-L-600,28),cols[0],by,{size:28});T(it.q,cols[1],by,{size:28,al:'left'});T(money(it.p),cols[2],by,{size:28,al:'left'});T(money(it.q*it.p),cols[3],by,{size:28,al:'left'});
+    T(fit(it.d,R-L-690,28),cols[0],by,{size:28});T(it.q,cols[1],by,{size:28,al:'left'});T(money(it.p),cols[2],by,{size:28,al:'left'});T(money(it.q*it.p),cols[3],by,{size:28,al:'left'});
     y+=rowH;if(tpl!=='minimal'){x.fillStyle=c['--pl'];x.fillRect(L,y,R-L,2)}});
+  x.fillStyle=tpl==='omani'?c['--pt']:c['--pl'];vx.forEach(v=>x.fillRect(v-1,tpl==='band'?tTop+4:tTop,2,y-tTop));
   y+=60;const SW=470,SR=L+SW;
   const line=(a,v)=>{T(a,SR,y,{size:28});T(v,L,y,{size:28,al:'left'});y+=48};
-  line('المجموع',money(t.sub));if(t.disc)line('الخصم','- '+money(t.disc));if(i.vat)line('ضريبة 5%',money(t.vat));
+  if(t.disc||i.vat)line('المجموع',money(t.sub));if(t.disc)line('الخصم','- '+money(t.disc));if(i.vat)line('ضريبة 5%',money(t.vat));
+  if(t.dep){line('العربون',money(t.dep));T('المتبقي',SR,y,{size:30,w:800,f:DF,col:c['--pa']});T(money(t.rem),L,y,{size:30,w:800,f:DF,col:c['--pa'],al:'left'});y+=50}
   y+=10;
   if(tpl==='band'||tpl==='minimal'){x.fillStyle=tpl==='band'?c['--pa']:c['--ps'];rr(x,L,y-8,SW,80,20);x.fill();const col=tpl==='band'?c['--pc']:c['--pa'];T('الإجمالي',SR-24,y+46,{size:36,w:800,f:DF,col});T(money(t.total),L+24,y+46,{size:36,w:800,f:DF,col,al:'left'});y+=100}
   else{x.fillStyle=c['--pa'];if(tpl==='omani'){x.fillRect(L,y-4,SW,3);x.fillRect(L,y+5,SW,3)}else x.fillRect(L,y-4,SW,5);const col=tpl==='curve'?c['--pa']:c['--pi'];T('الإجمالي',SR,y+56,{size:36,w:800,f:DF,col});T(money(t.total),L,y+56,{size:36,w:800,f:DF,col,al:'left'});y+=100}
