@@ -134,9 +134,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted);font-weight:600}
 .in{border:1.5px solid var(--line);background:var(--surface);border-radius:14px;padding:12px 13px;font:500 16px var(--f-body);color:var(--fg);width:100%}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.item{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:10px;display:grid;grid-template-columns:1fr 70px 100px 34px;gap:8px;align-items:center;margin-bottom:8px}
-.item .in{background:var(--bg);padding:10px}
-.item .del{border:0;background:none;color:var(--muted);font-size:22px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:10px;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1fr) minmax(0,1.15fr) 30px;gap:8px;align-items:end;margin-bottom:8px}
+.item label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.item label span{font-size:12px;color:var(--muted);font-weight:700;padding-inline-start:4px}
+.item .descl{grid-column:1/-1}
+.item .in{background:var(--bg);padding:10px;min-width:0}
+.item .amt .in{font-weight:800;color:var(--accent)}
+.item .del{border:0;background:none;color:var(--muted);font-size:22px;padding:0 0 10px}
+input[type=date].in{-webkit-appearance:none;appearance:none;min-width:0;min-height:48px;text-align:right}
 .add{border:1.5px dashed var(--line);background:none;border-radius:16px;padding:12px;width:100%;font-weight:700;color:var(--accent)}
 .qchips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none}
 .qchips::-webkit-scrollbar{display:none}
@@ -145,7 +150,6 @@ label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--mu
 .totals{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
 .totals div{display:flex;justify-content:space-between}
 .totals .g{font:800 20px var(--f-display);border-top:1px solid var(--line);padding-top:10px;color:var(--accent)}
-@media (max-width:420px){.item{grid-template-columns:1fr 1fr 34px}.item .desc{grid-column:1/-1}}
 
 /* preview + design picker */
 .doclabel{display:inline-flex;gap:6px;align-items:center;font-weight:700;font-size:13px;border-radius:999px;padding:4px 12px;background:color-mix(in srgb,var(--q) 14%,transparent);color:var(--q);margin-bottom:10px}
@@ -393,9 +397,10 @@ function renderEdit(){
    <div class="sec"><h3>البنود</h3>
      ${S.products.length?`<div class="qchips">${S.products.map(p=>`<button class="qchip" data-prod="${p.id}">+ ${esc(p.name)}<small class="num">${money(p.price)}</small></button>`).join('')}</div>`:''}
      <div id="items">${cur.items.map((it,k)=>`<div class="item">
-     <input class="in desc" data-k="${k}" data-f="d" list="dlp" value="${esc(it.d)}" placeholder="الوصف" autocomplete="off">
-     <input class="in num" data-k="${k}" data-f="q" type="number" inputmode="decimal" value="${it.q}" placeholder="الكمية" aria-label="الكمية">
-     <input class="in num" data-k="${k}" data-f="p" type="number" inputmode="decimal" step="any" value="${it.p}" placeholder="السعر" aria-label="السعر">
+     <label class="descl"><span>الوصف</span><input class="in desc" data-k="${k}" data-f="d" list="dlp" value="${esc(it.d)}" placeholder="مثال: صيانة مكيف" autocomplete="off"></label>
+     <label><span>الكمية</span><input class="in num" data-k="${k}" data-f="q" type="number" inputmode="decimal" step="any" value="${it.q}" placeholder="1"></label>
+     <label><span>سعر الوحدة</span><input class="in num" data-k="${k}" data-f="p" type="number" inputmode="decimal" step="any" value="${it.p||''}" placeholder="0"></label>
+     <label class="amt"><span>المبلغ</span><input class="in num" data-k="${k}" data-f="a" type="number" inputmode="decimal" step="any" value="${(+it.q||0)*(+it.p||0)?+((+it.q||0)*(+it.p||0)).toFixed(3):''}" placeholder="0"></label>
      <button class="del" data-del="${k}" aria-label="حذف البند">×</button></div>`).join('')}</div>
      <datalist id="dlp">${S.products.map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist>
      <button class="add" id="additem">+ إضافة بند</button></div>
@@ -415,7 +420,12 @@ function renderEdit(){
   $('#disc').oninput=e=>{cur.disc=+e.target.value||0;upd()};
   $('#vat').onchange=e=>{cur.vat=e.target.value==='1';upd()};
   $('#status')&&($('#status').onchange=e=>cur.status=e.target.value);
-  $$('#items input').forEach(i=>i.oninput=()=>{const it=cur.items[i.dataset.k];it[i.dataset.f]=i.dataset.f==='d'?i.value:(+i.value||0);upd()});
+  const fld=(k,f)=>document.querySelector(`#items [data-k="${k}"][data-f="${f}"]`);
+  $$('#items input').forEach(i=>i.oninput=()=>{const k=i.dataset.k,f=i.dataset.f,it=cur.items[k];
+    if(f==='d')it.d=i.value;
+    else if(f==='a'){const q=+it.q||1;if(!(+it.q))it.q=1;it.p=+((+i.value||0)/q).toFixed(3);fld(k,'p').value=it.p||'';fld(k,'q').value=it.q}
+    else{it[f]=+i.value||0;const a=(+it.q||0)*(+it.p||0);fld(k,'a').value=a?+a.toFixed(3):''}
+    upd()});
   $$('#items .desc').forEach(i=>i.onchange=()=>{const it=cur.items[i.dataset.k],p=S.products.find(p=>p.name===i.value.trim());if(p&&!(+it.p)){it.p=p.price;renderEdit()}});
   $$('[data-prod]').forEach(b=>b.onclick=()=>{const p=S.products.find(p=>p.id===b.dataset.prod);const last=cur.items[cur.items.length-1];
     if(last&&!last.d.trim()&&!(+last.p)){last.d=p.name;last.p=p.price;last.q=last.q||1}else{const ex=cur.items.find(it=>it.d===p.name);if(ex)ex.q=(+ex.q||0)+1;else cur.items.push({d:p.name,q:1,p:p.price})}renderEdit()});
