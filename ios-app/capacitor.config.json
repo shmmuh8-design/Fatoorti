@@ -1,0 +1,10 @@
+{
+  "appId": "com.salemaljabri.fatoorti",
+  "appName": "فاتورتي",
+  "webDir": "www",
+  "backgroundColor": "#f3f5fb",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#f3f5fb"
+  }
+}

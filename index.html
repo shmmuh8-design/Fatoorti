@@ -263,6 +263,14 @@ function migrate(){
 function upsertClient(i){const name=(i.client||'').trim();if(!name)return;let c=S.clients.find(c=>c.name===name);
   if(!c){c={id:uid(),name,phone:'',addr:''};S.clients.push(c)}if(i.cphone)c.phone=i.cphone;if(i.caddr)c.addr=i.caddr}
 function upsertProducts(i){i.items.forEach(it=>{const n=(it.d||'').trim();if(!n||!(+it.p))return;const p=S.products.find(p=>p.name===n);if(p)p.price=+it.p;else S.products.push({id:uid(),name:n,price:+it.p})})}
+const NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
+async function nativeShare(blob,name,title){
+  const {Filesystem,Share}=Capacitor.Plugins;
+  const b64=await new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>ok(String(fr.result).split(',')[1]);fr.onerror=no;fr.readAsDataURL(blob)});
+  const w=await Filesystem.writeFile({path:name,data:b64,directory:'CACHE'});
+  await Share.share({title,files:[w.uri]});
+}
+function shareText(t){if(NATIVE)return Capacitor.Plugins.Share.share({text:t}).catch(()=>{});if(navigator.share)return navigator.share({text:t}).catch(()=>{});navigator.clipboard?.writeText(t).then(()=>toast('تم النسخ'))}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2000)}
 function money(v){const c=CUR[S.biz?.cur||'OMR'];return (Number(v)||0).toLocaleString('en-US',{minimumFractionDigits:c.d,maximumFractionDigits:c.d})+' '+c.s}
 function calc(inv){const sub=inv.items.reduce((a,i)=>a+(+i.q||0)*(+i.p||0),0);const disc=+inv.disc||0;const base=Math.max(sub-disc,0);const vat=inv.vat?base*0.05:0;const total=base+vat;const dep=Math.min(+inv.dep||0,total);return{sub,disc,vat,total,dep,rem:Math.max(total-dep,0)}}
@@ -488,7 +496,7 @@ function renderView(){
     <button class="btn ghost" id="copy">نسخ النص</button>
     ${q?'':`<button class="btn ghost" id="toggle">${i.status==='paid'?'تعيين كمستحقة':'تعيين كمدفوعة ✓'}</button>`}
     <button class="btn ghost" id="dup">نسخة مكررة</button>
-    <button class="btn ghost" id="print">طباعة</button>
+    ${NATIVE?'':'<button class="btn ghost" id="print">طباعة</button>'}
     <button class="btn ghost" id="del" style="color:var(--late)">حذف</button>
    </div>
    ${confirmDel?`<div class="confirm"><p style="margin:0 0 10px">حذف ${docName(i)} #${docNo(i)} نهائياً؟</p><div class="row"><button class="btn danger" id="yes">نعم، احذف</button><button class="btn ghost" id="no">إلغاء</button></div></div>`:''}
@@ -507,7 +515,7 @@ function renderView(){
     i.converted=true;persist(i);S.invoices.push(inv);save();cur=JSON.parse(JSON.stringify(inv));toast('تم إنشاء فاتورة #'+docNo(inv));renderView()});
   $('#dup').onclick=()=>{const d={...JSON.parse(JSON.stringify(i)),id:'i'+Date.now(),no:q?S.qseq:S.seq,date:today(),due:'',status:'due',_new:true};delete d.converted;delete d.sample;delete d.fromQuote;cur=d;view='edit';render()};
   $('#del').onclick=()=>{confirmDel=true;renderView()};
-  $('#print').onclick=()=>window.print();
+  $('#print')&&($('#print').onclick=()=>window.print());
   $('#pdf').onclick=()=>sharePdf(i);
   const setD=(k,v)=>{S.biz.design={...design(),[k]:v};save();const y=scrollY;renderView();scrollTo(0,y)};
   $$('[data-tpl]').forEach(e=>e.onclick=()=>{const k=e.dataset.tpl,df=TDEF[k];S.biz.design={...design(),tpl:k,...(df?{paper:df[0],accent:df[1]}:{})};save();const y=scrollY;renderView();scrollTo(0,y)});
@@ -637,7 +645,7 @@ function renderReports(){
   $('#mprev').onclick=()=>{rmonth=shiftMonth(rmonth,-1);renderReports()};
   $('#mnext').onclick=()=>{if(rmonth<today().slice(0,7)){rmonth=shiftMonth(rmonth,1);renderReports()}};
   $('#shareR').onclick=()=>{const t=`*تقرير ${monthName(rmonth)} — ${S.biz.name}*\nالمبيعات: ${money(st.sales)}\nالمحصّل: ${money(st.paid)}\nغير مدفوع: ${money(st.unpaid)}\nالضريبة: ${money(st.vat)}\nعدد الفواتير: ${st.n}\nعروض الأسعار: ${st.quotes}`;
-    if(navigator.share)navigator.share({text:t}).catch(()=>{});else navigator.clipboard?.writeText(t).then(()=>toast('تم نسخ التقرير'))};
+    shareText(t)};
 }
 
 /* ---------- more ---------- */
@@ -666,6 +674,7 @@ function renderMore(){
 function exportBackup(){
   const data=JSON.stringify({app:'fatoorti',v:3,at:new Date().toISOString(),data:S});
   const f=new File([data],`فاتورتي-نسخة-${today()}.json`,{type:'application/json'});
+  if(NATIVE){nativeShare(f,`fatoorti-backup-${today()}.json`,'نسخة فاتورتي').catch(()=>{});return}
   if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'نسخة فاتورتي'}).catch(()=>{});return}
   const url=URL.createObjectURL(f),a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('تم حفظ النسخة');
 }
@@ -895,6 +904,7 @@ async function preparePdf(i){
 function sharePdf(i){
   if(!pdfReady||pdfReady.id!==i.id){preparePdf(i);return}
   const f=pdfReady.file;
+  if(NATIVE){nativeShare(pdfReady.blob,`${isQ(i)?'quote':'invoice'}-${docNo(i).replace(/\D/g,'')}.pdf`,`${docName(i)} #${docNo(i)}`).catch(e=>{if(!/cancel/i.test(String(e&&e.message)))toast('تعذّرت المشاركة')});return}
   if(navigator.canShare&&navigator.canShare({files:[f]})){
     navigator.share({files:[f],title:`${docName(i)} #${docNo(i)}`}).catch(e=>{if(e&&e.name!=='AbortError')openPdf()});
   }else openPdf();
