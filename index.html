@@ -84,6 +84,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .hero>*{position:relative}
 .who{display:flex;align-items:center;gap:12px;min-width:0}
 .avatar{width:46px;height:46px;border-radius:14px;object-fit:cover;background:rgba(255,255,255,.14);display:grid;place-items:center;font:800 20px var(--f-display);color:#f3d77a;flex:0 0 auto}
+.avwrap{position:relative;cursor:pointer;flex:0 0 auto}
+.avwrap .avatar{display:grid}
+.avplus{position:absolute;bottom:-4px;left:-4px;width:20px;height:20px;border-radius:50%;background:var(--gold);color:#1a1405;font:800 15px/20px var(--f-display);text-align:center;font-style:normal;box-shadow:0 2px 6px rgba(0,0,0,.3)}
 .who small{display:block;opacity:.75;font-size:13px}
 .who h2{font-size:21px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hstats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
@@ -375,7 +378,7 @@ function renderHome(){
   const FL=[['all','الكل'],['due','مستحقة'],['late','متأخرة'],['paid','مدفوعة'],['quote','عروض الأسعار']];
   $('#app').innerHTML=`
    <header class="hero">
-    <div class="who">${b.logo?`<img class="avatar" src="${b.logo}" alt="">`:`<span class="avatar">${esc(initial(b.name))}</span>`}<div style="min-width:0"><small>فاتورتي</small><h2>${esc(b.name)}</h2></div></div>
+    <div class="who"><label class="avwrap" for="hLogo" aria-label="${b.logo?'تغيير الشعار':'إضافة شعار'}">${b.logo?`<img class="avatar" src="${b.logo}" alt="">`:`<span class="avatar">${esc(initial(b.name))}</span><i class="avplus">+</i>`}<input id="hLogo" type="file" accept="image/*" hidden></label><div style="min-width:0"><small>${b.logo?'فاتورتي':'اضغط على المربع لإضافة شعارك'}</small><h2>${esc(b.name)}</h2></div></div>
     <div class="hstats"><div><small>إجمالي المبيعات</small><b class="num">${money(tot)}</b></div><div><small>غير مدفوع</small><b class="num">${money(due)}</b></div></div>
     ${late?`<button class="alert" id="lateBtn">⚠️ ${late===1?'فاتورة واحدة متأخرة':late+' فواتير متأخرة'} — اضغط للعرض والتذكير</button>`:''}
    </header>
@@ -383,6 +386,7 @@ function renderHome(){
    <div class="filters">${FL.map(([k,n])=>`<button class="fchip" data-f="${k}" aria-pressed="${filt===k}">${n}</button>`).join('')}</div>
    <div class="list">${list.length?list.map(invRow).join(''):`<div class="empty"><b>${S.invoices.length?'لا توجد نتائج':'لا توجد فواتير بعد'}</b>${S.invoices.length?'جرّب فلترًا آخر.':'أنشئ أول فاتورة أو عرض سعر من الأسفل.'}</div>`}</div>
    <div class="fab"><button class="btn" id="newInv">+ فاتورة</button><button class="btn gold" id="newQ">+ عرض سعر</button></div>`;
+  $('#hLogo').onchange=e=>readLogo(e.target.files[0],u=>{S.biz.logo=u;save();toast('تم إضافة الشعار ✓ يظهر على كل فاتورة');renderHome()});
   $('#newInv').onclick=()=>newDoc('inv');
   $('#newQ').onclick=()=>newDoc('quote');
   $('#lateBtn')&&($('#lateBtn').onclick=()=>{filt='late';renderHome()});
