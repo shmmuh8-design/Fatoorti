@@ -4,7 +4,7 @@
   "private": true,
   "description": "فاتورتي — تطبيق آيفون (Capacitor)",
   "scripts": {
-    "build": "rm -rf www && mkdir -p www && cp ../index.html ../qr.js ../manifest.json ../privacy.html ../support.html www/ && cp -r ../fonts ../icons www/",
+    "build": "rm -rf www && mkdir -p www && cp ../index.html ../manifest.json ../privacy.html ../support.html www/ && cp -r ../fonts ../icons www/",
     "assets": "capacitor-assets generate --ios --iconBackgroundColor '#1b2f6e' --splashBackgroundColor '#1b2f6e' --splashBackgroundColorDark '#0a0f1f'"
   },
   "dependencies": {

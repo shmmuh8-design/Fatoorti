@@ -231,7 +231,6 @@ input[type=date].in{-webkit-appearance:none;appearance:none;min-width:0;min-heig
 <div class="app" id="app"></div>
 <div class="tabbar" id="tabbar" hidden><nav id="tabs"></nav></div>
 <div class="toast" id="toast" role="status"></div>
-<script src="qr.js"></script>
 <script>
 const KEY='fatoorti.v1';
 const CUR={OMR:{s:'ر.ع.',d:3},SAR:{s:'ر.س.',d:2},AED:{s:'د.إ.',d:2},USD:{s:'$',d:2}};
@@ -650,12 +649,11 @@ function renderReports(){
 
 /* ---------- more ---------- */
 function renderMore(){
-  const b=S.biz,qrOn=b.qr!==false;
+  const b=S.biz;
   $('#app').innerHTML=`
    <div class="ptitle"><div><small>الإعدادات</small><h1>المزيد</h1></div></div>
    <div class="menu">
     <button class="mi2" id="mBiz"><span class="mic">🏪</span><span>بيانات النشاط<small>الاسم، الشعار، الهاتف، معلومات الدفع</small></span>‹</button>
-    <button class="mi2" id="mQr"><span class="mic">▦</span><span>رمز QR على الفاتورة<small>فيه رقم الفاتورة والمبلغ للتحقق السريع</small></span><i class="switch ${qrOn?'on':''}" role="switch" aria-checked="${qrOn}"></i></button>
    </div>
    <div class="menu">
     <button class="mi2" id="mExp"><span class="mic">💾</span><span>حفظ نسخة احتياطية<small>ملف فيه كل الفواتير والعملاء والمنتجات</small></span>‹</button>
@@ -665,7 +663,6 @@ function renderMore(){
    ${pendingImport?`<div class="confirm" style="margin-bottom:14px"><p style="margin:0 0 10px">استرجاع النسخة؟ فيها ${pendingImport.invoices.length} فاتورة و${(pendingImport.clients||[]).length} عميل. البيانات الحالية بتنستبدل.</p><div class="row"><button class="btn danger" id="yes">نعم، استرجع</button><button class="btn ghost" id="no">إلغاء</button></div></div>`:''}
    <p class="empty" style="padding:20px 10px">فاتورتي · بياناتك محفوظة على جهازك فقط.<br>احفظ نسخة احتياطية بين فترة وفترة.</p>`;
   $('#mBiz').onclick=()=>{step=0;draft=null;view='ob';render()};
-  $('#mQr').onclick=()=>{S.biz.qr=!qrOn;save();renderMore()};
   $('#mExp').onclick=exportBackup;
   $('#imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result),d=j.data||j;if(!d.biz||!Array.isArray(d.invoices))throw 0;pendingImport=d;renderMore()}catch(_){toast('الملف غير صالح')}};r.readAsText(f)};
   $('#no')&&($('#no').onclick=()=>{pendingImport=null;renderMore()});
@@ -724,7 +721,6 @@ function drawLuxe(x,i,H,c,logo){
   else ny=215-(nl.length-1)*34+18;
   nl.forEach((l,k)=>T(l,cx,ny+k*68,{size:54,w:800,f:DF,col:pc,al:'center'}));
   box(BX,455,BW,165,pa);T(isQ(i)?'عرض سعر':'الفاتورة',cx,575,{size:isQ(i)?92:100,w:800,f:DF,col:pc,al:'center'});
-  drawQR(x,i,80,60,230);
   const MX=BX-50;let my=330;
   const Q=isQ(i);kv(Q?'رقم العرض':'رقم الفاتورة',docNo(i),MX,my,{size:32});my+=55;
   kv(Q?'تاريخ العرض':'تاريخ الفاتورة',i.date,MX,my,{size:32});
@@ -771,7 +767,6 @@ function drawOrnate(x,i,H,c,logo){
   [0.34,0.62].forEach(f=>[-56,0,56].forEach(d=>{orn(F,H*f+d);orn(W-F,H*f+d)}));
   if(logo){const s=Math.min(120/logo.width,110/logo.height);x.drawImage(logo,R-logo.width*s,110,logo.width*s,logo.height*s)}
   T(isQ(i)?'عرض سعر':'الفاتورة',W/2,270,{size:130,w:800,f:DF,col:pa,al:'center'});
-  drawQR(x,i,130,96,190);
   T(fit(b.name,700,32,600),W/2,352,{size:32,w:600,col:pm,al:'center'});
   let my=410;T(isQ(i)?'مقدّم إلى :':'فاتورة إلى :',R,my,{size:30,col:pm});
   my+=66;T(fit(i.client||'—',620,48,800),R,my,{size:48,w:800,f:DF});
@@ -844,24 +839,13 @@ function drawGeneric(x,i,H,c,logo){
   y+=10;
   if(tpl==='band'||tpl==='minimal'){x.fillStyle=tpl==='band'?c['--pa']:c['--ps'];rr(x,L,y-8,SW,80,20);x.fill();const col=tpl==='band'?c['--pc']:c['--pa'];T('الإجمالي',SR-24,y+46,{size:36,w:800,f:DF,col});T(money(t.total),L+24,y+46,{size:36,w:800,f:DF,col,al:'left'});y+=100}
   else{x.fillStyle=c['--pa'];if(tpl==='omani'){x.fillRect(L,y-4,SW,3);x.fillRect(L,y+5,SW,3)}else x.fillRect(L,y-4,SW,5);const col=tpl==='curve'?c['--pa']:c['--pi'];T('الإجمالي',SR,y+56,{size:36,w:800,f:DF,col});T(money(t.total),L,y+56,{size:36,w:800,f:DF,col,al:'left'});y+=100}
-  const qy=y+10,qs=drawQR(x,i,L,qy,210);
   if(!isQ(i)&&i.status==='paid'){stamp(x,R-95,y+30);y+=100}
   const pr=payRows(b);if(pr.length){y+=30;T('معلومات الدفع',R,y,{size:28,w:700});pr.forEach(([l,v])=>{y+=44;kit(x,c).kv(l,v,R,y,{size:26})});y+=20}
-  y=Math.max(y,qs?qy+qs+20:y);
   const foot=[];if(i.notes)foot.push(i.notes);if(b.terms)foot.push(...kit(x,c).wrap(b.terms,R-L,22));if(b.cr)foot.push('س.ت: '+b.cr);
   const fh=foot.length*36;let fy=Math.max(y+60,H-(tpl==='omani'?110:90)-fh);
   foot.forEach(l=>{T(l,W/2,fy,{size:22,col:c['--pm'],al:'center',dir:'rtl'});fy+=36});
   return y+60+fh+120;
 }
-function drawQR(x,i,left,top,size){
-  if(S.biz.qr===false||typeof makeQR!=='function')return 0;
-  const t=calc(i),b=S.biz;
-  const txt=`${b.name}\n${docName(i)} #${docNo(i)}\nالتاريخ: ${i.date}\nالإجمالي: ${money(t.total)}${i.vat?`\nالضريبة: ${money(t.vat)}`:''}`;
-  let q;try{q=makeQR(txt)}catch(e){return 0}
-  const n=q.getModuleCount(),pad=size*0.07,cell=(size-2*pad)/n;
-  x.save();x.fillStyle='#ffffff';rr(x,left,top,size,size,16);x.fill();x.fillStyle='#16161a';
-  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))x.fillRect(left+pad+c*cell,top+pad+r*cell,cell+0.6,cell+0.6);
-  x.restore();return size}
 function rr(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath()}
 async function drawInvoice(i){
   try{await Promise.all(['500 30px FTajawal','700 30px FTajawal','800 30px FCairo','600 30px FCairo'].map(f=>document.fonts.load(f,'عربي 123')));await document.fonts.ready}catch(e){}
