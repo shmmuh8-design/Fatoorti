@@ -150,6 +150,7 @@ input[type=date].in{-webkit-appearance:none;appearance:none;min-width:0;min-heig
 .totals{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
 .totals div{display:flex;justify-content:space-between}
 .totals .g{font:800 20px var(--f-display);border-top:1px solid var(--line);padding-top:10px;color:var(--accent)}
+.totals .g:first-child{border-top:0;padding-top:0}
 
 /* preview + design picker */
 .doclabel{display:inline-flex;gap:6px;align-items:center;font-weight:700;font-size:13px;border-radius:999px;padding:4px 12px;background:color-mix(in srgb,var(--q) 14%,transparent);color:var(--q);margin-bottom:10px}
@@ -313,7 +314,7 @@ function renderOb(){
   const st=STEPS[step];const pct=((step+1)/STEPS.length)*100;
   let field='';
   if(st.chips){field=`<div class="chips">${Object.entries(CUR).map(([k,v])=>`<button class="chip" data-cur="${k}" aria-pressed="${draft.cur===k}">${v.s} ${k}</button>`).join('')}</div>`}
-  else if(st.logo){field=`<label class="logo-drop" for="logo">${draft.logo?`<img src="${draft.logo}" alt="الشعار">`:'اضغط لاختيار صورة الشعار'}<input id="logo" type="file" accept="image/*" hidden></label>`}
+  else if(st.logo){field=`<label class="logo-drop" for="logo">${draft.logo?`<img src="${draft.logo}" alt="الشعار">`:'اضغط لاختيار صورة الشعار'}<input id="logo" type="file" accept="image/*" hidden></label>${draft.logo?'<div class="row" style="justify-content:center"><label class="btn ghost" for="logo" style="flex:0 0 auto">تغيير الشعار</label><button class="btn ghost" id="logodel" style="flex:0 0 auto;color:var(--late)">حذف الشعار</button></div>':''}`}
   else if(st.multi){field=st.multi.map(([k,ph])=>`<input class="big mi" data-k="${k}" placeholder="${ph}" value="${esc(draft[k]||'')}" autocomplete="off" style="font-size:17px;padding:18px">`).join('')}
   else if(st.area){field=`<textarea class="big" id="obin" rows="4" placeholder="${st.ph}" style="font-size:16px;text-align:right;line-height:1.7">${esc(draft[st.k]||'')}</textarea>`}
   else field=`<input class="big" id="obin" type="${st.type||'text'}" placeholder="${st.ph}" value="${esc(draft[st.k])}" autocomplete="off">`;
@@ -333,6 +334,7 @@ function renderOb(){
   chk();
   $$('[data-cur]').forEach(b=>b.onclick=()=>{draft.cur=b.dataset.cur;renderOb()});
   const lf=$('#logo');if(lf)lf.onchange=()=>readLogo(lf.files[0],u=>{draft.logo=u;renderOb()});
+  $('#logodel')&&($('#logodel').onclick=()=>{draft.logo='';renderOb()});
   nx.onclick=()=>{if(step<STEPS.length-1){step++;renderOb()}else finishOb()};
   $('#back')&&($('#back').onclick=()=>{step--;renderOb()});
   $('#skip')&&($('#skip').onclick=()=>nx.click());
@@ -422,6 +424,7 @@ function renderEdit(){
      ${q?'':`<label class="f">الحالة<select class="in" id="status"><option value="due" ${cur.status!=='paid'?'selected':''}>مستحقة</option><option value="paid" ${cur.status==='paid'?'selected':''}>مدفوعة</option></select></label>`}</div></div>
    <div class="sec"><label class="f">ملاحظات<textarea class="in" id="notes" rows="2" placeholder="${q?'مثال: الأسعار تشمل التركيب':'مثال: التحويل على حساب بنك مسقط'}">${esc(cur.notes)}</textarea></label></div>
    <div class="totals" id="totals"></div>
+   ${cur._new?'':`<div style="margin-top:14px">${confirmDel?`<div class="confirm"><p style="margin:0 0 10px">حذف ${docName(cur)} #${docNo(cur)} نهائياً؟</p><div class="row"><button class="btn danger" id="edYes">نعم، احذف</button><button class="btn ghost" id="edNo">إلغاء</button></div></div>`:`<button class="btn ghost" id="edDel" style="width:100%;color:var(--late)">🗑️ حذف ${q?'العرض':'الفاتورة'}</button>`}</div>`}
    <div class="fab solo"><button class="btn" id="saveinv" style="width:100%">حفظ ومعاينة</button></div>`;
   const upd=()=>{const t=calc(cur),ex=t.disc||cur.vat;$('#totals').innerHTML=`${ex?`<div><span>المجموع</span><span class="num">${money(t.sub)}</span></div>`:''}${t.disc?`<div><span>الخصم</span><span class="num">- ${money(t.disc)}</span></div>`:''}${cur.vat?`<div><span>الضريبة 5%</span><span class="num">${money(t.vat)}</span></div>`:''}${t.dep?`<div><span>العربون</span><span class="num">${money(t.dep)}</span></div><div><span>المتبقي</span><b class="num" style="color:var(--late)">${money(t.rem)}</b></div>`:''}<div class="g"><span>الإجمالي</span><span class="num">${money(t.total)}</span></div>`};
   upd();
@@ -443,6 +446,9 @@ function renderEdit(){
   $$('[data-prod]').forEach(b=>b.onclick=()=>{const p=S.products.find(p=>p.id===b.dataset.prod);const last=cur.items[cur.items.length-1];
     if(last&&!last.d.trim()&&!(+last.p)){last.d=p.name;last.p=p.price;last.q=last.q||1}else{const ex=cur.items.find(it=>it.d===p.name);if(ex)ex.q=(+ex.q||0)+1;else cur.items.push({d:p.name,q:1,p:p.price})}renderEdit()});
   $$('[data-del]').forEach(b=>b.onclick=()=>{cur.items.splice(+b.dataset.del,1);if(!cur.items.length)cur.items.push({d:'',q:1,p:0});renderEdit()});
+  $('#edDel')&&($('#edDel').onclick=()=>{confirmDel=true;const y=scrollY;renderEdit();scrollTo(0,y)});
+  $('#edNo')&&($('#edNo').onclick=()=>{confirmDel=false;const y=scrollY;renderEdit();scrollTo(0,y)});
+  $('#edYes')&&($('#edYes').onclick=()=>{S.invoices=S.invoices.filter(x=>x.id!==cur.id);save();confirmDel=false;toast('تم الحذف');view=cur._back||'home';render()});
   $('#additem').onclick=()=>{cur.items.push({d:'',q:1,p:0});renderEdit();const d=$$('.desc');d[d.length-1].focus()};
   $('#cancel').onclick=()=>{if(cur._new){view=cur._from||'home'}else{view='view';cur=JSON.parse(JSON.stringify(S.invoices.find(i=>i.id===cur.id)))}render()};
   $('#saveinv').onclick=()=>{
@@ -499,7 +505,7 @@ function renderView(){
     ${q?'':`<button class="btn ghost" id="toggle">${i.status==='paid'?'تعيين كمستحقة':'تعيين كمدفوعة ✓'}</button>`}
     <button class="btn ghost" id="dup">نسخة مكررة</button>
     ${NATIVE?'':'<button class="btn ghost" id="print">طباعة</button>'}
-    <button class="btn ghost" id="del" style="color:var(--late)">حذف</button>
+    <button class="btn ghost wide" id="del" style="color:var(--late)">🗑️ حذف ${q?'العرض':'الفاتورة'}</button>
    </div>
    ${confirmDel?`<div class="confirm"><p style="margin:0 0 10px">حذف ${docName(i)} #${docNo(i)} نهائياً؟</p><div class="row"><button class="btn danger" id="yes">نعم، احذف</button><button class="btn ghost" id="no">إلغاء</button></div></div>`:''}
    <div class="design">
@@ -509,7 +515,7 @@ function renderView(){
     <div class="swrow"><span>اللون الرئيسي</span><div class="sws">${ACCENTS.map(([c,n])=>`<button class="sw" data-accent="${c}" style="background:${c}" aria-label="${n}" aria-pressed="${design().accent===c}"></button>`).join('')}<label class="sw custom" aria-label="لون مخصص"><input type="color" id="pick" value="${design().accent}"></label></div></div>
    </div>`;
   $('#back').onclick=()=>{confirmDel=false;view=cur._back||'home';render()};
-  $('#edit').onclick=()=>{view='edit';render()};
+  $('#edit').onclick=()=>{confirmDel=false;view='edit';render()};
   $('#copy').onclick=()=>{navigator.clipboard?.writeText(invText(i)).then(()=>toast('تم النسخ')).catch(()=>toast('تعذّر النسخ'))};
   $('#toggle')&&($('#toggle').onclick=()=>{i.status=i.status==='paid'?'due':'paid';persist(i);toast(i.status==='paid'?'تم تعيينها مدفوعة ✓':'تم تعيينها مستحقة');renderView()});
   $('#convert')&&($('#convert').onclick=()=>{
@@ -656,7 +662,9 @@ function renderMore(){
   $('#app').innerHTML=`
    <div class="ptitle"><div><small>الإعدادات</small><h1>المزيد</h1></div></div>
    <div class="menu">
-    <button class="mi2" id="mBiz"><span class="mic">🏪</span><span>بيانات النشاط<small>الاسم، الشعار، الهاتف، معلومات الدفع</small></span>‹</button>
+    <button class="mi2" id="mBiz"><span class="mic">🏪</span><span>بيانات النشاط<small>الاسم، الهاتف، العنوان، معلومات الدفع</small></span>‹</button>
+    <div class="mi2" style="cursor:default"><span class="mic" style="overflow:hidden;padding:0">${b.logo?`<img src="${b.logo}" alt="" style="width:100%;height:100%;object-fit:contain;background:#fff">`:'🖼️'}</span><span>الشعار<small>${b.logo?'يظهر على كل فاتورة':'ما فيه شعار'}</small></span>
+     <label class="btn ghost" for="mLogo" style="flex:0 0 auto;padding:8px 12px;font-size:14px">${b.logo?'تغيير':'إضافة'}</label>${b.logo?'<button class="btn ghost" id="mLogoDel" style="flex:0 0 auto;padding:8px 12px;font-size:14px;color:var(--late)">حذف</button>':''}<input id="mLogo" type="file" accept="image/*" hidden></div>
    </div>
    <div class="menu">
     <button class="mi2" id="mExp"><span class="mic">💾</span><span>حفظ نسخة احتياطية<small>ملف فيه كل الفواتير والعملاء والمنتجات</small></span>‹</button>
@@ -673,6 +681,8 @@ function renderMore(){
    </footer>`;
   $('#mBiz').onclick=()=>{step=0;draft=null;view='ob';render()};
   $('#mExp').onclick=exportBackup;
+  $('#mLogo').onchange=e=>readLogo(e.target.files[0],u=>{S.biz.logo=u;save();toast('تم تحديث الشعار ✓');renderMore()});
+  $('#mLogoDel')&&($('#mLogoDel').onclick=()=>{S.biz.logo='';save();toast('تم حذف الشعار');renderMore()});
   $('#imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result),d=j.data||j;if(!d.biz||!Array.isArray(d.invoices))throw 0;pendingImport=d;renderMore()}catch(_){toast('الملف غير صالح')}};r.readAsText(f)};
   $('#no')&&($('#no').onclick=()=>{pendingImport=null;renderMore()});
   $('#yes')&&($('#yes').onclick=()=>{S=pendingImport;pendingImport=null;migrate();save();toast('تم الاسترجاع ✓');view='home';render()});
