@@ -681,9 +681,11 @@ function pv(){const o={};paperVars().split(';').forEach(s=>{const [k,v]=s.split(
 function loadImg(src){return new Promise(r=>{if(!src)return r(null);const im=new Image();im.onload=()=>r(im);im.onerror=()=>r(null);im.src=src})}
 const DF='"FCairo",system-ui,sans-serif',BF='"FTajawal",system-ui,sans-serif';
 const isAr=s=>/[؀-ۿ]/.test(String(s));
+/* body text a little larger for readability; big titles stay as designed */
+const UP=z=>z<=36?Math.round(z*1.14):z;
 function kit(x,c){
-  const T=(s,px,py,{size=28,w=500,col=c['--pi'],al='right',f=BF,dir}={})=>{x.font=`${w} ${size}px ${f}`;x.fillStyle=col;x.textAlign=al;x.direction=dir||(isAr(s)?'rtl':'ltr');x.textBaseline='alphabetic';x.fillText(String(s),px,py)};
-  const M=(s,size,w=500,f=BF)=>{x.font=`${w} ${size}px ${f}`;return x.measureText(String(s)).width};
+  const T=(s,px,py,{size=28,w=500,col=c['--pi'],al='right',f=BF,dir}={})=>{x.font=`${w} ${UP(size)}px ${f}`;x.fillStyle=col;x.textAlign=al;x.direction=dir||(isAr(s)?'rtl':'ltr');x.textBaseline='alphabetic';x.fillText(String(s),px,py)};
+  const M=(s,size,w=500,f=BF)=>{x.font=`${w} ${UP(size)}px ${f}`;return x.measureText(String(s)).width};
   const fit=(s,maxW,size,w=500)=>{s=String(s);if(M(s,size,w)<=maxW)return s;while(s.length>2&&M(s+'…',size,w)>maxW)s=s.slice(0,-1);return s+'…'};
   const wrap=(s,maxW,size,w=400,f=BF)=>{const out=[];String(s||'').split('\n').forEach(par=>{let line='';par.split(/\s+/).filter(Boolean).forEach(word=>{const t=line?line+' '+word:word;if(M(t,size,w,f)>maxW&&line){out.push(line);line=word}else line=t});if(line)out.push(line)});return out};
   const box=(a,b,w,h,col)=>{x.fillStyle=col;x.fillRect(a,b,w,h)};
@@ -785,8 +787,8 @@ function drawOrnate(x,i,H,c,logo){
   // totals left, payment right
   let ty=tb+70;const TW=560;
   totRows(i,t).forEach(([lab,val,big])=>{if(big){box(L,ty-48,TW,72,pa);T(lab+' :',L+TW-24,ty,{size:34,w:800,f:DF,col:pc});T(val,L+24,ty,{size:34,w:800,f:DF,col:pc,al:'left'})}else{T(lab+' :',L+TW-24,ty,{size:30});T(val,L+24,ty,{size:30,al:'left'})}ty+=62});
-  let py=tb+70;const pr=payRows(b);
-  if(pr.length){T('معلومات الدفع :',R,py,{size:34,w:800,f:DF});pr.forEach(([l,v])=>{py+=56;kv(l,v,R,py,{size:30})})}
+  let py=ty+30;const pr=payRows(b);
+  if(pr.length){T('معلومات الدفع :',R,py,{size:34,w:800,f:DF});pr.forEach(([l,v])=>{py+=56;kv(l,fit(v,R-L-120-M(l+' :',30),30),R,py,{size:30})})}
   let sy=Math.max(ty,py)+110;
   hl(L+40,sy,400,c['--pi'],3);T(fit(b.name,400,28,700),L+240,sy+46,{size:28,w:700,al:'center'});
   if(!isQ(i)&&i.status==='paid')stamp(x,W/2+110,sy-10);
@@ -820,7 +822,7 @@ function drawGeneric(x,i,H,c,logo){
   y+=40;T('إلى',R,y,{size:26,col:c['--pm']});T('التاريخ',L,y,{size:26,col:c['--pm'],al:'left'});
   y+=46;T(fit(i.client||'—',600,32,600),R,y,{size:32,w:600});T(i.date,L,y,{size:32,w:600,al:'left'});
   let yy=y;if(i.cphone){yy+=42;T(i.cphone,R,yy,{size:26,col:c['--pm']})}if(i.caddr){yy+=40;T(fit(i.caddr,600,26),R,yy,{size:26,col:c['--pm']})}
-  if(i.due)T((isQ(i)?'صالح حتى ':'الاستحقاق ')+i.due,L,y+42,{size:26,col:c['--pm'],al:'left',dir:'rtl'});
+  if(i.due)kit(x,c).kvL(isQ(i)?'صالح حتى':'الاستحقاق',i.due,L,y+42,{size:26,col:c['--pm']});
   y=Math.max(y+110,yy+70);
   const cols=[R-14,L+560,L+340,L+14],thH=58,tTop=y-44,vx=[L+652,L+540,L+322];
   if(tpl==='band'){x.fillStyle=c['--ps'];x.fillRect(L,y-40,R-L,thH)}
