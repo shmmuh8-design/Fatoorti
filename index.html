@@ -283,7 +283,7 @@ const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function load(){try{const v=JSON.parse(localStorage.getItem(KEY));if(v)return v}catch(e){}return{biz:null,invoices:[],clients:[],products:[],seq:1,qseq:1,v2:true,v3:true}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('تعذّر الحفظ: مساحة الجهاز ممتلئة')}if(isPro()){scheduleNotifs();autoBackup()}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('تعذّر الحفظ: مساحة الجهاز ممتلئة')}if(isPro()){scheduleNotifs();autoBackup()}askReview()}
 function migrate(){
   S.invoices=S.invoices||[];
   if(!S.v2){[...S.invoices].sort((a,b)=>a.no-b.no).forEach((inv,k)=>inv.no=k+1);S.seq=S.invoices.length+1;S.v2=true}
@@ -702,6 +702,10 @@ function renderMore(){
     <label class="mi2" for="imp" style="cursor:pointer"><span class="mic">📂</span><span>استرجاع نسخة احتياطية<small>من ملف حفظته سابقًا</small></span>‹</label>
     <input id="imp" type="file" accept=".json,application/json" hidden>
    </div>
+   <div class="menu">
+    <button class="mi2" id="mRate"><span class="mic">⭐</span><span>قيّم فاتورتي<small>رأيك يساعدنا نطوّر التطبيق</small></span>‹</button>
+    <button class="mi2" id="mShare"><span class="mic">📣</span><span>شارك التطبيق<small>أرسله لربعك وأصحاب المحلات</small></span>‹</button>
+   </div>
    ${pendingImport?`<div class="confirm" style="margin-bottom:14px"><p style="margin:0 0 10px">استرجاع النسخة؟ فيها ${pendingImport.invoices.length} فاتورة و${(pendingImport.clients||[]).length} عميل. البيانات الحالية بتنستبدل.</p><div class="row"><button class="btn danger" id="yes">نعم، استرجع</button><button class="btn ghost" id="no">إلغاء</button></div></div>`:''}
    <p class="empty" style="padding:14px 10px 6px">بياناتك محفوظة على جهازك فقط.<br>احفظ نسخة احتياطية بين فترة وفترة.</p>
    <footer class="credits">
@@ -710,7 +714,7 @@ function renderMore(){
     <a href="mailto:design.omani1@gmail.com" dir="ltr">design.omani1@gmail.com</a>
     <a href="https://techlights.app" target="_blank" rel="noopener" dir="ltr">🌐 techlights.app</a>
    </footer>`;
-  bindPro();
+  bindPro();$('#mRate').onclick=openRate;$('#mShare').onclick=shareApp;
   $('#mBiz').onclick=()=>{step=0;draft=null;view='ob';render()};
   $('#mExp').onclick=exportBackup;
   $('#mLogo').onchange=e=>readLogo(e.target.files[0],u=>{S.biz.logo=u;save();toast('تم تحديث الشعار ✓');renderMore()});
@@ -952,6 +956,19 @@ function openPdf(){
   const a=document.createElement('a');a.href=url;a.download=pdfReady.file.name;a.target='_blank';a.rel='noopener';
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
+
+/* ---------- طلب التقييم الرسمي من آبل (SKStoreReviewController) ---------- */
+const STORE_URL='https://apps.apple.com/app/id6834834851';
+function askReview(){
+  if(!PRO||!NATIVE)return;const R=Capacitor.Plugins.InAppReview;if(!R||!S.invoices)return;
+  const n=S.invoices.filter(i=>!i.sample&&!i._new).length;S.rv=S.rv||[];
+  const hit=[3,10,25,60].find(k=>n>=k&&!S.rv.includes(k));if(!hit)return;
+  if(S.rvAt&&Date.now()-S.rvAt<60*864e5){S.rv.push(hit);return}
+  S.rv.push(hit);S.rvAt=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  setTimeout(()=>R.requestReview().catch(()=>{}),1800);
+}
+function openRate(){const u=STORE_URL+'?action=write-review';if(NATIVE)location.href=u.replace('https://','itms-apps://');else window.open(u,'_blank','noopener')}
+function shareApp(){shareText('جرّب «فاتورتي» — فواتير وعروض أسعار بشعارك في ثواني 🧾\n'+STORE_URL)}
 
 /* ---------- فاتورتي برو: الاشتراك والمميزات ---------- */
 const PRO_IDS={m:'com.salemaljabri.Fatoorti.pro.monthly',y:'com.salemaljabri.Fatoorti.pro.yearly'};

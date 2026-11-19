@@ -17,6 +17,7 @@ workflows:
       - name: تثبيت الحزم وتجهيز الملفات
         script: |
           npm install
+          npm install @capacitor-community/in-app-review@^7 --no-save || echo 'تخطّي إضافة التقييم'
           npm run build
       - name: إنشاء مشروع iOS
         script: |
