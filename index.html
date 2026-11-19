@@ -254,10 +254,13 @@ input[type=date].in{-webkit-appearance:none;appearance:none;min-width:0;min-heig
 .plan .tag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--gold);color:#1b2f6e;font-size:11px;font-weight:800;padding:2px 10px;border-radius:999px;white-space:nowrap}
 .legal{font-size:12px;color:var(--muted);text-align:center;line-height:1.7;margin-top:12px}
 .legal a{color:var(--accent)}
-.sw{width:46px;height:28px;border-radius:999px;background:var(--line);position:relative;flex:0 0 auto;transition:.2s}
-.sw::after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
-.sw.on{background:var(--ok)}.sw.on::after{right:21px}
+.tgl{width:46px;height:28px;border-radius:999px;background:var(--line);position:relative;flex:0 0 auto;transition:.2s}
+.tgl::after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.tgl.on{background:var(--ok)}.tgl.on::after{right:21px}
 .sigbox{width:100%;height:150px;border:2px dashed var(--line);border-radius:16px;background:#fff;touch-action:none;display:block}
+body.en{direction:ltr}
+body.en textarea,body.en .big{text-align:left!important}
+body.en .mi2,body.en .pf,body.en .procard{text-align:left}
 </style>
 </head>
 <body>
@@ -272,7 +275,7 @@ let S=load();
 const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
 const fmtNo=n=>String(n).padStart(4,'0');
 const isQ=i=>i&&i.kind==='quote';
-const docNo=i=>(isQ(i)?'ع':'')+fmtNo(i.no);
+const docNo=i=>(isQ(i)?(EN()?'Q':'ع'):'')+fmtNo(i.no);
 const docName=i=>isQ(i)?'عرض سعر':'فاتورة';
 const today=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 const overdue=i=>!isQ(i)&&i.status!=='paid'&&i.due&&i.due<today();
@@ -303,12 +306,163 @@ async function nativeShare(blob,name,title){
   await Share.share({title,files:[w.uri]});
 }
 function shareText(t){if(NATIVE)return Capacitor.Plugins.Share.share({text:t}).catch(()=>{});if(navigator.share)return navigator.share({text:t}).catch(()=>{});navigator.clipboard?.writeText(t).then(()=>toast('تم النسخ'))}
-function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2000)}
-function money(v){const c=CUR[S.biz?.cur||'OMR'];return (Number(v)||0).toLocaleString('en-US',{minimumFractionDigits:c.d,maximumFractionDigits:c.d})+' '+c.s}
+function toast(t){const e=$('#toast');e.textContent=trText(t);e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2000)}
+function money(v){const c=CUR[S.biz?.cur||'OMR'];return (Number(v)||0).toLocaleString('en-US',{minimumFractionDigits:c.d,maximumFractionDigits:c.d})+' '+(EN()?CUR_EN[S.biz?.cur||'OMR']:c.s)}
 function calc(inv){const sub=inv.items.reduce((a,i)=>a+(+i.q||0)*(+i.p||0),0);const disc=+inv.disc||0;const base=Math.max(sub-disc,0);const vat=inv.vat?base*0.05:0;const total=base+vat;const dep=Math.min(+inv.dep||0,total);return{sub,disc,vat,total,dep,rem:Math.max(total-dep,0)}}
 const owed=i=>i.status==='paid'?0:calc(i).rem;
 const waNum=p=>(p||'').replace(/\D/g,'').replace(/^(?=9|7)(\d{8})$/,'968$1');
 const initial=s=>(String(s||'؟').trim()[0]||'؟');
+
+/* ---------- اللغة: عربي / English ---------- */
+var LANG=(()=>{try{const v=localStorage.getItem('fatoorti.lang');if(v)return v;if(S&&S.biz)return 'ar'}catch(e){}return /^ar/i.test(navigator.language||'ar')?'ar':'en'})();
+var CTXLANG=null;
+function EN(){return (CTXLANG||LANG)==='en'}
+function invEN(){return !!(S.biz&&S.biz.invLang==='en')}
+const MONTHS_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const CUR_EN={OMR:'OMR',SAR:'SAR',AED:'AED',USD:'$'};
+const I18N={
+ /* tabs & common */
+ 'الفواتير':'Invoices','العملاء':'Clients','المنتجات':'Products','التقارير':'Reports','المزيد':'More',
+ 'حفظ':'Save','حذف':'Delete','مسح':'Clear','رجوع':'Back','تخطي':'Skip','ابدأ':'Start','التالي':'Next','إلغاء':'Cancel','تعديل':'Edit','طباعة':'Print','إضافة':'Add','تغيير':'Change',
+ 'الكل':'All','مثال':'Sample','بدون':'None','اختياري':'Optional','مستحقة':'Due','متأخرة':'Overdue','مدفوعة':'Paid','عرض سعر':'Quote','عروض الأسعار':'Quotes','تحوّل لفاتورة':'Converted',
+ 'نعم، احذف':'Yes, delete','نعم، استرجع':'Yes, restore','التفاصيل':'Details','اعرف أكثر':'Learn more','مفعّل ✓':'Active ✓',
+ /* onboarding */
+ 'ما اسم نشاطك التجاري؟':'What is your business name?','يظهر على كل فاتورة ترسلها.':'It appears on every invoice you send.','اسم شركتك أو محلك':'Your company or shop name',
+ 'رقم التواصل؟':'Contact number?','ليتواصل معك عملاؤك بسهولة.':'So your clients can reach you easily.',
+ 'عنوان النشاط':'Business address','اختياري، يظهر في بيانات النشاط على الفاتورة.':'Optional, shown in the business details on the invoice.','مثال: مطرح، مسقط':'e.g. Muttrah, Muscat',
+ 'رقم السجل التجاري':'Commercial Registration No.','اختياري، يظهر أسفل الفاتورة.':'Optional, shown at the bottom of the invoice.','مثال: 1234567':'e.g. 1234567',
+ 'معلومات الدفع':'Payment details','اختياري، ليعرف العميل أين يحوّل المبلغ.':'Optional, so the client knows where to transfer.','اسم البنك':'Bank name','اسم صاحب الحساب':'Account holder name','رقم الحساب أو IBAN':'Account number or IBAN',
+ 'الشروط والأحكام':'Terms & conditions','اختياري، تظهر أسفل كل فاتورة.':'Optional, shown at the bottom of every invoice.','مثال: جميع المبيعات نهائية ولا يمكن إرجاعها إلا في حال وجود عيب مصنعي.':'e.g. All sales are final; returns only for manufacturing defects.',
+ 'ما عملتك؟':'Your currency?','تُحسب بها كل المبالغ.':'All amounts use this currency.',
+ 'أضف شعارك':'Add your logo','اختياري، ويمكنك تغييره لاحقاً.':'Optional, you can change it later.','اضغط لاختيار صورة الشعار':'Tap to choose your logo','تغيير الشعار':'Change logo','حذف الشعار':'Remove logo','الشعار':'Logo',
+ /* home */
+ 'إجمالي المبيعات':'Total sales','غير مدفوع':'Unpaid','اضغط على المربع لإضافة شعارك':'Tap the square to add your logo','فاتورتي':'Fatoorti','إضافة شعار':'Add logo',
+ 'ابحث باسم العميل أو رقم الفاتورة':'Search by client or invoice no.','لا توجد نتائج':'No results','جرّب فلترًا آخر.':'Try another filter.','لا توجد فواتير بعد':'No invoices yet','أنشئ أول فاتورة أو عرض سعر من الأسفل.':'Create your first invoice or quote below.',
+ '+ فاتورة':'+ Invoice','+ عرض سعر':'+ Quote','بدون اسم':'No name',
+ /* editor */
+ 'العميل':'Client','الاسم':'Name','الهاتف':'Phone','العنوان':'Address','التاريخ':'Date','صالح حتى':'Valid until','الاستحقاق':'Due date','اسم العميل':'Client name',
+ 'البنود':'Items','الوصف':'Description','الكمية':'Qty','سعر الوحدة':'Unit price','المبلغ':'Amount','حذف البند':'Remove item','+ إضافة بند':'+ Add item','مثال: صيانة مكيف':'e.g. AC maintenance',
+ 'الخصم والضريبة':'Discount & tax','خصم (مبلغ)':'Discount (amount)','العربون (مدفوع مقدمًا)':'Deposit (paid upfront)','ضريبة القيمة المضافة':'VAT','الحالة':'Status',
+ 'ملاحظات':'Notes','مثال: الأسعار تشمل التركيب':'e.g. Prices include installation','مثال: التحويل على حساب بنك مسقط':'e.g. Transfer to Bank Muscat account',
+ 'المجموع':'Subtotal','الخصم':'Discount','الضريبة 5%':'VAT 5%','العربون':'Deposit','المتبقي':'Balance due','الإجمالي':'Total','حفظ ومعاينة':'Save & preview',
+ '🗑️ حذف الفاتورة':'🗑️ Delete invoice','🗑️ حذف العرض':'🗑️ Delete quote',
+ /* view */
+ 'مشاركة PDF':'Share PDF','جارٍ تجهيز PDF…':'Preparing PDF…','تحويل إلى فاتورة ✨':'Convert to invoice ✨','🔔 تذكير بالدفع على واتساب':'🔔 Payment reminder on WhatsApp','إرسال واتساب':'Send on WhatsApp','نسخ النص':'Copy text',
+ 'تعيين كمستحقة':'Mark as due','تعيين كمدفوعة ✓':'Mark as paid ✓','نسخة مكررة':'Duplicate','📝 عرض سعر':'📝 Quote','📝 عرض سعر · تحوّل لفاتورة':'📝 Quote · converted',
+ 'تصميم الفاتورة':'Invoice design','تصميم العرض':'Quote design','لون الورق':'Paper colour','اللون الرئيسي':'Main colour','لون مخصص':'Custom colour','لغة الفاتورة':'Invoice language',
+ 'فاخر':'Luxe','مزخرف':'Ornate','كلاسيك':'Classic','شريط':'Band','عماني':'Omani','دوائر':'Circles','بسيط':'Minimal',
+ 'أبيض':'White','بيج':'Beige','كريمي':'Cream','رملي':'Sand','نعناعي':'Mint','سماوي':'Sky','وردي':'Rose','فحمي':'Charcoal',
+ 'أسود':'Black','خمري':'Wine','بني':'Brown','كحلي':'Navy','ملكي':'Royal','ذهبي':'Gold','زمردي':'Emerald','عنابي':'Maroon','فيروزي':'Turquoise','برتقالي':'Orange',
+ /* clients */
+ 'ابحث بالاسم أو الهاتف':'Search by name or phone','دفتر العملاء فارغ':'No clients yet','كل عميل تكتب له فاتورة ينحفظ هنا تلقائيًا، أو أضفه الآن.':'Every client you invoice is saved here automatically, or add one now.',
+ '+ عميل جديد':'+ New client','عميل جديد':'New client','اسم العميل أو الشركة':'Client or company name','حذف العميل من الدفتر؟ فواتيره تبقى كما هي.':'Remove this client? Their invoices stay as they are.',
+ 'إجمالي تعاملاته':'Total business','باقي عليه':'Balance due','+ فاتورة له':'+ Invoice','💬 محادثة واتساب':'💬 WhatsApp chat','فواتيره وعروضه':'Invoices & quotes','لا توجد فواتير لهذا العميل بعد.':'No invoices for this client yet.',
+ /* products */
+ 'المنتجات والأسعار':'Products & prices','اسم المنتج أو الخدمة':'Product or service name','السعر':'Price','ابحث في الأصناف':'Search items','اضغط للتعديل':'Tap to edit',
+ 'قائمة الأسعار فارغة':'Your price list is empty','أضف أصناف محلك وأسعارها مرة وحدة، وبعدها تضيفها للفاتورة بضغطة.':'Add your items and prices once, then add them to invoices with one tap.','+ صنف جديد':'+ New item',
+ /* reports */
+ 'ملخص أعمالك':'Business summary','الشهر السابق':'Previous month','الشهر التالي':'Next month','مبيعات الشهر':'Monthly sales','المحصّل':'Collected','عدد الفواتير':'Invoices',
+ 'آخر 6 أشهر':'Last 6 months','أفضل العملاء هذا الشهر':'Top clients this month','لا توجد فواتير في هذا الشهر':'No invoices this month','لك عند العملاء (كل الفترات)':'Owed to you (all time)','مشاركة التقرير':'Share report',
+ /* more */
+ 'الإعدادات':'Settings','بيانات النشاط':'Business details','الاسم، الهاتف، العنوان، معلومات الدفع':'Name, phone, address, payment details','ما فيه شعار':'No logo','يظهر على كل فاتورة':'Shown on every invoice',
+ 'حفظ نسخة احتياطية':'Save a backup','ملف فيه كل الفواتير والعملاء والمنتجات':'A file with all invoices, clients and products','استرجاع نسخة احتياطية':'Restore a backup','من ملف حفظته سابقًا':'From a file you saved earlier',
+ 'بياناتك محفوظة على جهازك فقط.':'Your data is stored on your device only.','احفظ نسخة احتياطية بين فترة وفترة.':'Save a backup from time to time.',
+ '© 2026 فاتورتي — جميع الحقوق محفوظة':'© 2026 Fatoorti — All rights reserved','سالم الجابري · مسقط، سلطنة عُمان':'Salem Aljabri · Muscat, Sultanate of Oman',
+ 'قيّم فاتورتي':'Rate Fatoorti','رأيك يساعدنا نطوّر التطبيق':'Your feedback helps us improve','شارك التطبيق':'Share the app','أرسله لربعك وأصحاب المحلات':'Send it to friends and shop owners',
+ 'اللغة':'Language','عربي':'Arabic',
+ /* pro */
+ '👑 فاتورتي برو':'👑 Fatoorti Pro','فاتورتي برو':'Fatoorti Pro','تنبيهات الفواتير · نسخ تلقائي · توقيع وختم · تصدير Excel':'Invoice alerts · Auto backup · Signature & stamp · Excel export',
+ 'اشتراك':'Subscription','مميزات إضافية لأصحاب الأعمال — وكل المميزات الحالية تظل مجانية':'Extra features for businesses — everything you have today stays free',
+ 'تنبيهات الفواتير':'Invoice alerts','يذكّرك يوم الاستحقاق، وإذا تأخر العميل، وقبل انتهاء عرض السعر':'Reminds you on the due date, when a client is late, and before a quote expires',
+ 'نسخ احتياطي تلقائي':'Automatic backup','نسخة يومية تنحفظ لحالها في «الملفات» على جوالك ونسخة iCloud للجهاز':'A daily copy saved to the Files app on your phone and in your iCloud device backup',
+ 'التوقيع والختم':'Signature & stamp','وقّع بإصبعك أو أضف ختم نشاطك، ويطلع على كل فاتورة':'Sign with your finger or add your stamp to every invoice',
+ 'تصدير Excel':'Excel export','كل الفواتير في ملف جاهز للمحاسب':'All invoices in one file for your accountant',
+ 'شهري':'Monthly','سنوي':'Yearly','كل شهر':'per month','كل سنة':'per year','الأوفر':'Best value','اشترك الحين':'Subscribe now','جارٍ…':'Please wait…','استرجاع المشتريات':'Restore purchases',
+ '✓ أنت مشترك في فاتورتي برو':'✓ You are subscribed to Fatoorti Pro','تقدر تدير أو تلغي اشتراكك من إعدادات حسابك في آبل':'You can manage or cancel from your Apple account settings',
+ 'الاشتراك متوفر داخل تطبيق فاتورتي على الآيفون.':'Subscriptions are available in the Fatoorti iPhone app.',
+ 'الاشتراك يتجدد تلقائياً بنفس السعر في نهاية كل فترة، إلا إذا ألغيته قبل نهايتها بـ 24 ساعة على الأقل من إعدادات حسابك في آبل. المبلغ يُخصم من حساب Apple ID عند تأكيد الشراء.':'The subscription renews automatically at the same price at the end of each period unless cancelled at least 24 hours before it ends, from your Apple account settings. Payment is charged to your Apple ID at confirmation of purchase.',
+ 'شروط الاستخدام (EULA)':'Terms of Use (EULA)','سياسة الخصوصية':'Privacy Policy',
+ 'يوم الاستحقاق، وبعد التأخير، وقبل انتهاء العرض':'On the due date, when late, and before a quote expires','يحفظ نسخة كل يوم في «الملفات»':'Saves a copy every day in the Files app',
+ 'استرجاع من النسخ التلقائية':'Restore from automatic backups','اختر من آخر النسخ المحفوظة':'Choose from recent backups','النسخ التلقائية':'Automatic backups','اختر نسخة':'Choose a backup','نسخة يوم كامل':'Full-day copy',
+ 'تلقى نفس الملفات في تطبيق «الملفات» ← على الـiPhone ← فاتورتي':'The same files are in the Files app → On My iPhone → Fatoorti',
+ 'أضف توقيعك أو ختم نشاطك':'Add your signature or stamp','يطلع على الفواتير':'Shown on invoices','كل الفواتير وعروض الأسعار في ملف واحد':'All invoices and quotes in one file',
+ 'وقّع بإصبعك':'Sign with your finger','حفظ التوقيع':'Save signature','أو ارفع صورة الختم / التوقيع':'Or upload a stamp / signature image','🖼️ اختيار صورة':'🖼️ Choose image','الأفضل صورة بخلفية بيضاء أو شفافة':'Best with a white or transparent background','الحالي':'Current',
+ /* toasts */
+ 'أضف بنداً واحداً على الأقل':'Add at least one item','اكتب اسم الصنف':'Enter the item name','اكتب اسم العميل':'Enter the client name','الاسترجاع من تطبيق الآيفون':'Restore from the iPhone app',
+ 'الاشتراك متوفر في تطبيق فاتورتي على الآيفون':'Subscriptions are available in the Fatoorti iPhone app','المتجر غير جاهز، حاول بعد لحظات':'Store not ready, try again in a moment','الملف غير صالح':'Invalid file',
+ 'تعذّر الاتصال بالمتجر':'Could not reach the App Store','تعذّر الحفظ: مساحة الجهاز ممتلئة':'Could not save: device storage is full','تعذّر تجهيز PDF':'Could not prepare PDF','تعذّر فتح النسخة':'Could not open the backup','تعذّرت المشاركة':'Sharing failed','تعذّر النسخ':'Copy failed',
+ 'تم إضافة الشعار ✓ يظهر على كل فاتورة':'Logo added ✓ it appears on every invoice','تم الاسترجاع ✓':'Restored ✓','تم الحذف':'Deleted','تم الحفظ':'Saved','تم النسخ':'Copied','تم تحديث الشعار ✓':'Logo updated ✓','تم تصدير الملف':'File exported',
+ 'تم حذف الشعار':'Logo removed','تم حذف العميل':'Client removed','تم حفظ التوقيع ✓':'Signature saved ✓','تم حفظ الختم ✓':'Stamp saved ✓','تم حفظ النسخة':'Backup saved','تم حفظ بيانات النشاط':'Business details saved',
+ 'جارٍ استرجاع المشتريات…':'Restoring purchases…','فعّل الإشعارات من إعدادات الآيفون':'Enable notifications in iPhone Settings','ما تمت العملية':'Purchase not completed','ما فيه نسخ تلقائية للحين':'No automatic backups yet',
+ 'مرحباً بك في فاتورتي برو 👑':'Welcome to Fatoorti Pro 👑','هذا الاسم موجود في الدفتر':'This name already exists','هذا الصنف موجود':'This item already exists','وقّع في المربع أول':'Sign in the box first',
+ 'تم استرجاع اشتراكك ✓':'Subscription restored ✓','ما لقينا اشتراك على هذا الحساب':'No subscription found on this account','تم تعيينها مدفوعة ✓':'Marked as paid ✓','تم تعيينها مستحقة':'Marked as due','تم حذف الصورة':'Image removed',
+};
+const I18N_RX=[
+ [/^(\d+) صنف$/,m=>`${m[1]} items`],[/^(\d+) عميل$/,m=>`${m[1]} clients`],[/^(\d+) فاتورة$/,m=>`${m[1]} invoices`],[/^(\d+) عرض سعر$/,m=>`${m[1]} quotes`],
+ [/^(\d+) فاتورة · (.+)$/,m=>`${m[1]} invoices · ${m[2]}`],[/^(\d+) فاتورة غير مدفوعة$/,m=>`${m[1]} unpaid invoices`],
+ [/^⏰ متأخرة (\d+) يوم$/,m=>`⏰ ${m[1]} days overdue`],[/^باقي (.+)$/,m=>`Due ${m[1]}`],
+ [/^فاتورة #(.+)$/,m=>`Invoice #${m[1]}`],[/^عرض سعر #(.+)$/,m=>`Quote #${m[1]}`],
+ [/^حذف فاتورة #(.+) نهائياً؟$/,m=>`Delete invoice #${m[1]} permanently?`],[/^حذف عرض سعر #(.+) نهائياً؟$/,m=>`Delete quote #${m[1]} permanently?`],
+ [/^معاينة (فاتورة|عرض سعر)$/,m=>m[1]==='فاتورة'?'Invoice preview':'Quote preview'],
+ [/^⚠️ (\d+) فواتير متأخرة — اضغط للعرض والتذكير$/,m=>`⚠️ ${m[1]} overdue invoices — tap to view and remind`],[/^⚠️ فاتورة واحدة متأخرة — اضغط للعرض والتذكير$/,()=>'⚠️ 1 overdue invoice — tap to view and remind'],
+ [/^استرجاع النسخة؟ فيها (\d+) فاتورة و(\d+) عميل\. البيانات الحالية بتنستبدل\.$/,m=>`Restore this backup? It has ${m[1]} invoices and ${m[2]} clients. Your current data will be replaced.`],
+ [/^(ر\.ع\.|ر\.س\.|د\.إ\.|\$) ([A-Z]{3})$/,m=>m[2]],[/^آخر نسخة: (.+)$/,m=>`Last backup: ${m[1]}`],[/^تم إنشاء فاتورة #(.+)$/,m=>`Invoice #${m[1]} created`],
+];
+const HAS_AR=/[؀-ۿ]/;
+function trText(s){
+  if(LANG!=='en'||!s||!HAS_AR.test(s))return s;
+  const lead=s.match(/^\s*/)[0],tail=s.match(/\s*$/)[0],t=s.trim();
+  if(I18N[t]!=null)return lead+I18N[t]+tail;
+  for(const [rx,f] of I18N_RX){const m=t.match(rx);if(m)return lead+f(m)+tail}
+  return s;
+}
+let i18nBusy=false;
+function trTree(root){
+  if(LANG!=='en'||!root)return;i18nBusy=true;
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;
+  while(n=w.nextNode()){const v=n.nodeValue;if(!HAS_AR.test(v)){if(v.trim()==='‹'&&!n.parentElement.closest('.mnav'))n.nodeValue=v.replace('‹','›');continue}const r=trText(v);if(r!==v)n.nodeValue=r}
+  const els=root.nodeType===1?[root,...root.querySelectorAll('[placeholder],[aria-label],[alt],[title]')]:[];
+  els.forEach(e=>['placeholder','aria-label','alt','title'].forEach(a=>{const v=e.getAttribute&&e.getAttribute(a);if(v&&HAS_AR.test(v)){const r=trText(v);if(r!==v)e.setAttribute(a,r)}}));
+  i18nBusy=false;
+}
+function applyLang(){
+  const en=LANG==='en';document.documentElement.lang=en?'en':'ar';document.documentElement.dir=en?'ltr':'rtl';document.body.classList.toggle('en',en);
+  document.title=en?'Fatoorti':'فاتورتي';
+}
+function setLang(l){LANG=l;try{localStorage.setItem('fatoorti.lang',l)}catch(e){}location.reload()}
+new MutationObserver(ms=>{if(i18nBusy||LANG!=='en')return;ms.forEach(m=>{if(m.type==='characterData')trTree(m.target.parentNode);else m.addedNodes.forEach(n=>n.nodeType===3?trTree(n.parentNode):trTree(n))})}).observe(document.body,{childList:true,subtree:true,characterData:true});
+applyLang();
+
+/* labels on the invoice itself (canvas) */
+const IL_MAP={'عرض سعر':'QUOTE','الفاتورة':'INVOICE','فاتورة':'Invoice','رقم العرض':'Quote No','رقم الفاتورة':'Invoice No','تاريخ العرض':'Quote date','تاريخ الفاتورة':'Invoice date',
+ 'صالح حتى':'Valid until','الاستحقاق':'Due date','مقدّم إلى':'Prepared for','فاتورة إلى':'Bill to','الوصف':'Description','سعر الوحدة':'Unit price','الكمية':'Qty','الإجمالي':'Total',
+ 'معلومات الدفع':'Payment details','الشروط والأحكام':'Terms & conditions','بيانات النشاط':'Business details','إلى':'To','التاريخ':'Date','السعر':'Price','المبلغ':'Amount',
+ 'المجموع':'Subtotal','المجموع الفرعي':'Subtotal','الخصم':'Discount','ضريبة 5%':'VAT 5%','الضريبة (5%)':'VAT (5%)','العربون':'Deposit','المتبقي':'Balance due','المجموع الكلي':'Total',
+ 'البنك':'Bank','اسم الحساب':'Account name','رقم الحساب':'Account no.','مدفوعة':'PAID','التوقيع / الختم':'Signature / Stamp'};
+function IL(s){
+  if(CTXLANG!=='en')return s;s=String(s);
+  if(IL_MAP[s])return IL_MAP[s];
+  const m=s.match(/^(.+?)\s*:$/);if(m&&IL_MAP[m[1]])return IL_MAP[m[1]]+':';
+  if(s.startsWith('س.ت: '))return 'CR No: '+s.slice(5);
+  return s;
+}
+/* mirror a canvas context horizontally so the RTL layouts become LTR (text itself is not mirrored) */
+function mirrorCtx(x,W){
+  const st=[];let rel=false;const mx=v=>rel?-v:W-v;
+  const h={
+   fillRect:(a,b,w,hh)=>x.fillRect(mx(a)-w,b,w,hh),strokeRect:(a,b,w,hh)=>x.strokeRect(mx(a)-w,b,w,hh),clearRect:(a,b,w,hh)=>x.clearRect(mx(a)-w,b,w,hh),rect:(a,b,w,hh)=>x.rect(mx(a)-w,b,w,hh),
+   fillText:(t,a,b,m)=>m==null?x.fillText(t,mx(a),b):x.fillText(t,mx(a),b,m),strokeText:(t,a,b)=>x.strokeText(t,mx(a),b),
+   moveTo:(a,b)=>x.moveTo(mx(a),b),lineTo:(a,b)=>x.lineTo(mx(a),b),
+   arc:(a,b,r,s,e,ccw)=>x.arc(mx(a),b,r,Math.PI-e,Math.PI-s,!!ccw),
+   arcTo:(a,b,c,d,r)=>x.arcTo(mx(a),b,mx(c),d,r),
+   quadraticCurveTo:(a,b,c,d)=>x.quadraticCurveTo(mx(a),b,mx(c),d),bezierCurveTo:(a,b,c,d,e,f)=>x.bezierCurveTo(mx(a),b,mx(c),d,mx(e),f),
+   drawImage:(im,...r)=>{if(r.length===2)return x.drawImage(im,mx(r[0])-im.width,r[1]);if(r.length===4)return x.drawImage(im,mx(r[0])-r[2],r[1],r[2],r[3]);return x.drawImage(im,r[0],r[1],r[2],r[3],mx(r[4])-r[6],r[5],r[6],r[7])},
+   translate:(a,b)=>{x.translate(mx(a),b);rel=true},rotate:a=>x.rotate(-a),
+   save:()=>{st.push(rel);x.save()},restore:()=>{rel=st.length?st.pop():false;x.restore()},
+  };
+  return new Proxy(x,{get(t,p){if(h[p])return h[p];if(p==='textAlign'){const v=t.textAlign;return v==='left'?'right':v==='right'?'left':v}const v=t[p];return typeof v==='function'?v.bind(t):v},
+    set(t,p,v){if(p==='textAlign')v=v==='left'?'right':v==='right'?'left':v==='start'?'end':v==='end'?'start':v;t[p]=v;return true}});
+}
 
 /* ---------- tab bar ---------- */
 const IC={
@@ -348,7 +502,7 @@ function renderOb(){
   else if(st.area){field=`<textarea class="big" id="obin" rows="4" placeholder="${st.ph}" style="font-size:16px;text-align:right;line-height:1.7">${esc(draft[st.k]||'')}</textarea>`}
   else field=`<input class="big" id="obin" type="${st.type||'text'}" placeholder="${st.ph}" value="${esc(draft[st.k])}" autocomplete="off">`;
   $('#app').innerHTML=`
-   ${S.biz?'<div class="top" style="padding:0"><button class="iconbtn" id="obcancel">إلغاء</button><span></span></div>':''}
+   ${S.biz?'<div class="top" style="padding:0"><button class="iconbtn" id="obcancel">إلغاء</button><span></span></div>':step===0?`<div class="top" style="padding:0"><span></span><button class="iconbtn" id="obLang">🌐 ${LANG==='en'?'العربية':'English'}</button></div>`:''}
    <div class="progress"><i style="width:${pct}%"></i></div>
    <div class="ob">
     <h1>${st.q}</h1><p class="sub">${st.sub}</p>
@@ -367,12 +521,13 @@ function renderOb(){
   nx.onclick=()=>{if(step<STEPS.length-1){step++;renderOb()}else finishOb()};
   $('#back')&&($('#back').onclick=()=>{step--;renderOb()});
   $('#skip')&&($('#skip').onclick=()=>nx.click());
+  $('#obLang')&&($('#obLang').onclick=()=>setLang(LANG==='en'?'ar':'en'));
   $('#obcancel')&&($('#obcancel').onclick=()=>{draft=null;view='more';render()});
 }
 function readLogo(file,cb){if(!file)return;const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');const m=240,sc=Math.min(1,m/Math.max(img.width,img.height));c.width=img.width*sc;c.height=img.height*sc;c.getContext('2d').drawImage(img,0,0,c.width,c.height);cb(c.toDataURL('image/png'))};img.src=r.result};r.readAsDataURL(file)}
 function finishOb(){
-  const first=!S.biz;S.biz={...(S.biz||{}),...draft};draft=null;
-  if(first&&!S.invoices.length){S.invoices.push({id:'s1',no:S.seq++,kind:'inv',sample:true,client:'مطعم الوادي (مثال)',cphone:'',date:today(),due:'',status:'paid',vat:true,disc:0,notes:'شكراً لتعاملكم معنا',items:[{d:'تصميم منيو مطبوع',q:1,p:35},{d:'تصوير أطباق',q:12,p:4.5}]})}
+  const first=!S.biz;S.biz={...(S.biz||{}),...draft};if(!S.biz.invLang)S.biz.invLang=LANG;draft=null;
+  if(first&&!S.invoices.length){S.invoices.push({id:'s1',no:S.seq++,kind:'inv',sample:true,client:EN()?'Al Wadi Restaurant (sample)':'مطعم الوادي (مثال)',cphone:'',date:today(),due:'',status:'paid',vat:true,disc:0,notes:EN()?'Thank you for your business':'شكراً لتعاملكم معنا',items:EN()?[{d:'Printed menu design',q:1,p:35},{d:'Food photography',q:12,p:4.5}]:[{d:'تصميم منيو مطبوع',q:1,p:35},{d:'تصوير أطباق',q:12,p:4.5}]})}
   save();view=first?'home':'more';if(!first)toast('تم حفظ بيانات النشاط');render();
 }
 
@@ -389,7 +544,7 @@ function statusPill(i){
   return '<span class="pill due">مستحقة</span>';
 }
 function invRow(i){return `<button class="inv" data-id="${i.id}">
-  <span class="ic ${isQ(i)?'q':''}">${isQ(i)?'ع':'ف'}</span>
+  <span class="ic ${isQ(i)?'q':''}">${isQ(i)?(EN()?'Q':'ع'):(EN()?'I':'ف')}</span>
   <span class="c">${esc(i.client||'بدون اسم')}${i.sample?'<span class="tag">مثال</span>':''}</span><span class="a num">${money(calc(i).total)}</span>
   <span class="m"><bdi>#${docNo(i)}</bdi> · <bdi>${i.date}</bdi></span>${statusPill(i)}</button>`}
 function sortDocs(a){return a.sort((x,y)=>(y.date||'').localeCompare(x.date||'')||String(y.id).localeCompare(String(x.id)))}
@@ -516,10 +671,16 @@ function paperVars(){
 }
 
 /* ---------- invoice view ---------- */
-function invText(i){const t=calc(i),b=S.biz,q=isQ(i);let s=`*${b.name}*\n${q?'عرض سعر':'فاتورة'} رقم #${docNo(i)}\nالتاريخ: ${i.date}${i.due?`\n${q?'صالح حتى':'الاستحقاق'}: ${i.due}`:''}\nالعميل: ${i.client}\n\n`;
+function invText(i){if(invEN()){CTXLANG='en';try{return invTextEn(i)}finally{CTXLANG=null}}return invTextAr(i)}
+function remindText(i){if(invEN()){CTXLANG='en';try{return remindTextEn(i)}finally{CTXLANG=null}}return remindTextAr(i)}
+function invTextEn(i){const t=calc(i),b=S.biz,q=isQ(i);let s=`*${b.name}*\n${q?'Quote':'Invoice'} #${docNo(i)}\nDate: ${i.date}${i.due?`\n${q?'Valid until':'Due date'}: ${i.due}`:''}\nClient: ${i.client}\n\n`;
+  i.items.forEach(it=>s+=`• ${it.d} × ${it.q} = ${money(it.q*it.p)}\n`);
+  s+=`${t.disc||i.vat?`\nSubtotal: ${money(t.sub)}`:''}${t.disc?`\nDiscount: ${money(t.disc)}`:''}${i.vat?`\nVAT 5%: ${money(t.vat)}`:''}\n*Total: ${money(t.total)}*${t.dep?`\nDeposit: ${money(t.dep)}\n*Balance due: ${money(t.rem)}*`:''}${q?'':`\nStatus: ${i.status==='paid'?'Paid':'Due'}`}${i.notes?`\n\n${i.notes}`:''}${b.phone?`\n📞 ${b.phone}`:''}`;return s}
+function remindTextEn(i){const b=S.biz;const pl={'البنك':'Bank','اسم الحساب':'Account name','رقم الحساب':'Account no.'};return `Hello ${i.client||''},\nThis is a friendly reminder about invoice #${docNo(i)} dated ${i.date} for *${money(calc(i).rem)}*${overdue(i)?`, which is ${daysLate(i)} days past due`:''}.\n${payRows(b).length?'\nPayment details:\n'+payRows(b).map(([l,v])=>`${pl[l]||l}: ${v}`).join('\n')+'\n':''}\nThank you 🌹\n${b.name}${b.phone?' · '+b.phone:''}`}
+function invTextAr(i){const t=calc(i),b=S.biz,q=isQ(i);let s=`*${b.name}*\n${q?'عرض سعر':'فاتورة'} رقم #${docNo(i)}\nالتاريخ: ${i.date}${i.due?`\n${q?'صالح حتى':'الاستحقاق'}: ${i.due}`:''}\nالعميل: ${i.client}\n\n`;
   i.items.forEach(it=>s+=`• ${it.d} × ${it.q} = ${money(it.q*it.p)}\n`);
   s+=`${t.disc||i.vat?`\nالمجموع: ${money(t.sub)}`:''}${t.disc?`\nالخصم: ${money(t.disc)}`:''}${i.vat?`\nالضريبة 5%: ${money(t.vat)}`:''}\n*الإجمالي: ${money(t.total)}*${t.dep?`\nالعربون: ${money(t.dep)}\n*المتبقي: ${money(t.rem)}*`:''}${q?'':`\nالحالة: ${i.status==='paid'?'مدفوعة':'مستحقة'}`}${i.notes?`\n\n${i.notes}`:''}${b.phone?`\n📞 ${b.phone}`:''}`;return s}
-function remindText(i){const b=S.biz;return `السلام عليكم ${i.client||''}،\nنذكّركم بلطف بالفاتورة رقم #${docNo(i)} بتاريخ ${i.date} بمبلغ *${money(calc(i).rem)}*${overdue(i)?`، وقد مضى على موعد استحقاقها ${daysLate(i)} يوم`:''}.\n${payRows(b).length?'\nبيانات التحويل:\n'+payRows(b).map(([l,v])=>`${l}: ${v}`).join('\n')+'\n':''}\nشاكرين تعاونكم 🌹\n${b.name}${b.phone?' · '+b.phone:''}`}
+function remindTextAr(i){const b=S.biz;return `السلام عليكم ${i.client||''}،\nنذكّركم بلطف بالفاتورة رقم #${docNo(i)} بتاريخ ${i.date} بمبلغ *${money(calc(i).rem)}*${overdue(i)?`، وقد مضى على موعد استحقاقها ${daysLate(i)} يوم`:''}.\n${payRows(b).length?'\nبيانات التحويل:\n'+payRows(b).map(([l,v])=>`${l}: ${v}`).join('\n')+'\n':''}\nشاكرين تعاونكم 🌹\n${b.name}${b.phone?' · '+b.phone:''}`}
 function renderView(){
   const i=cur,b=S.biz,q=isQ(i),wa=waNum(i.cphone);
   $('#app').innerHTML=`
@@ -541,6 +702,7 @@ function renderView(){
    <div class="design">
     <h3>تصميم ${q?'العرض':'الفاتورة'}</h3>
     <div class="tpls">${TPLS.map(([k,n,m])=>`<button class="tpl" data-tpl="${k}" aria-pressed="${design().tpl===k}"><span class="mini" style="background:${design().paper}">${m(design().accent)}</span>${n}</button>`).join('')}</div>
+    <div class="swrow"><span>لغة الفاتورة</span><div class="sws" style="gap:8px">${[['ar','عربي'],['en','English']].map(([k,n])=>`<button class="fchip" data-il="${k}" aria-pressed="${(S.biz.invLang||'ar')===k}">${n}</button>`).join('')}</div></div>
     <div class="swrow"><span>لون الورق</span><div class="sws">${PAPERS.map(([c,n])=>`<button class="sw" data-paper="${c}" style="background:${c}" aria-label="${n}" aria-pressed="${design().paper===c}"></button>`).join('')}</div></div>
     <div class="swrow"><span>اللون الرئيسي</span><div class="sws">${ACCENTS.map(([c,n])=>`<button class="sw" data-accent="${c}" style="background:${c}" aria-label="${n}" aria-pressed="${design().accent===c}"></button>`).join('')}<label class="sw custom" aria-label="لون مخصص"><input type="color" id="pick" value="${design().accent}"></label></div></div>
    </div>`;
@@ -557,6 +719,7 @@ function renderView(){
   $('#pdf').onclick=()=>sharePdf(i);
   const setD=(k,v)=>{S.biz.design={...design(),[k]:v};save();const y=scrollY;renderView();scrollTo(0,y)};
   $$('[data-tpl]').forEach(e=>e.onclick=()=>{const k=e.dataset.tpl,df=TDEF[k];S.biz.design={...design(),tpl:k,...(df?{paper:df[0],accent:df[1]}:{})};save();const y=scrollY;renderView();scrollTo(0,y)});
+  $$('[data-il]').forEach(e=>e.onclick=()=>{S.biz.invLang=e.dataset.il;save();const y=scrollY;renderView();scrollTo(0,y)});
   $$('[data-paper]').forEach(e=>e.onclick=()=>setD('paper',e.dataset.paper));
   $$('[data-accent]').forEach(e=>e.onclick=()=>setD('accent',e.dataset.accent));
   $('#pick').onchange=e=>setD('accent',e.target.value);
@@ -648,7 +811,7 @@ function renderProducts(){
 }
 
 /* ---------- reports ---------- */
-const monthName=m=>{const [y,mm]=m.split('-');return MONTHS[+mm-1]+' '+y};
+const monthName=m=>{const [y,mm]=m.split('-');return (EN()?MONTHS_EN:MONTHS)[+mm-1]+' '+y};
 const shiftMonth=(m,d)=>{let [y,mm]=m.split('-').map(Number);mm+=d;while(mm<1){mm+=12;y--}while(mm>12){mm-=12;y++}return y+'-'+String(mm).padStart(2,'0')};
 function monthStats(m){
   const invs=S.invoices.filter(i=>!isQ(i)&&!i.sample&&(i.date||'').startsWith(m));
@@ -668,7 +831,7 @@ function renderReports(){
   const top=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,5);
   $('#app').innerHTML=`
    <div class="ptitle"><div><small>ملخص أعمالك</small><h1>التقارير</h1></div></div>
-   <div class="mnav"><button id="mprev" aria-label="الشهر السابق">›</button><b>${monthName(rmonth)}</b><button id="mnext" aria-label="الشهر التالي" ${rmonth>=today().slice(0,7)?'disabled style="opacity:.3"':''}>‹</button></div>
+   <div class="mnav"><button id="mprev" aria-label="الشهر السابق">${EN()?'‹':'›'}</button><b>${monthName(rmonth)}</b><button id="mnext" aria-label="الشهر التالي" ${rmonth>=today().slice(0,7)?'disabled style="opacity:.3"':''}>${EN()?'›':'‹'}</button></div>
    <div class="kpis">
     <div class="kpi main"><small>مبيعات الشهر</small><b class="num">${money(st.sales)}</b></div>
     <div class="kpi"><small>المحصّل</small><b class="num" style="color:var(--ok)">${money(st.paid)}</b></div>
@@ -676,13 +839,13 @@ function renderReports(){
     <div class="kpi"><small>ضريبة القيمة المضافة</small><b class="num">${money(st.vat)}</b></div>
     <div class="kpi"><small>عدد الفواتير</small><b class="num">${st.n}</b><small>${st.quotes} عرض سعر</small></div>
    </div>
-   <div class="panel"><h3>آخر 6 أشهر</h3><div class="chart">${months.map((m,k)=>`<div class="bar ${m===rmonth?'cur':''}"><i style="height:${Math.round(vals[k]/max*100)}%" title="${money(vals[k])}"></i><span>${MONTHS[+m.split('-')[1]-1].slice(0,5)}</span></div>`).join('')}</div></div>
+   <div class="panel"><h3>آخر 6 أشهر</h3><div class="chart">${months.map((m,k)=>`<div class="bar ${m===rmonth?'cur':''}"><i style="height:${Math.round(vals[k]/max*100)}%" title="${money(vals[k])}"></i><span>${EN()?MONTHS_EN[+m.split('-')[1]-1].slice(0,3):MONTHS[+m.split('-')[1]-1].slice(0,5)}</span></div>`).join('')}</div></div>
    <div class="panel"><h3>أفضل العملاء هذا الشهر</h3>${top.length?top.map(([n,v],k)=>`<div class="trow"><span>${k+1}. ${esc(n)}</span><b class="num">${money(v)}</b></div>`).join(''):'<div class="trow"><span style="color:var(--muted)">لا توجد فواتير في هذا الشهر</span></div>'}</div>
    <div class="panel"><h3>لك عند العملاء (كل الفترات)</h3><div class="trow"><span>${all.length} فاتورة غير مدفوعة</span><b class="num" style="color:var(--late)">${money(outstanding)}</b></div></div>
    <div class="row"><button class="btn" id="shareR">مشاركة التقرير</button></div>`;
   $('#mprev').onclick=()=>{rmonth=shiftMonth(rmonth,-1);renderReports()};
   $('#mnext').onclick=()=>{if(rmonth<today().slice(0,7)){rmonth=shiftMonth(rmonth,1);renderReports()}};
-  $('#shareR').onclick=()=>{const t=`*تقرير ${monthName(rmonth)} — ${S.biz.name}*\nالمبيعات: ${money(st.sales)}\nالمحصّل: ${money(st.paid)}\nغير مدفوع: ${money(st.unpaid)}\nالضريبة: ${money(st.vat)}\nعدد الفواتير: ${st.n}\nعروض الأسعار: ${st.quotes}`;
+  $('#shareR').onclick=()=>{if(EN()){shareText(`*${monthName(rmonth)} report — ${S.biz.name}*\nSales: ${money(st.sales)}\nCollected: ${money(st.paid)}\nUnpaid: ${money(st.unpaid)}\nVAT: ${money(st.vat)}\nInvoices: ${st.n}\nQuotes: ${st.quotes}`);return}const t=`*تقرير ${monthName(rmonth)} — ${S.biz.name}*\nالمبيعات: ${money(st.sales)}\nالمحصّل: ${money(st.paid)}\nغير مدفوع: ${money(st.unpaid)}\nالضريبة: ${money(st.vat)}\nعدد الفواتير: ${st.n}\nعروض الأسعار: ${st.quotes}`;
     shareText(t)};
 }
 
@@ -703,6 +866,7 @@ function renderMore(){
     <input id="imp" type="file" accept=".json,application/json" hidden>
    </div>
    <div class="menu">
+    <button class="mi2" id="mLang"><span class="mic">🌐</span><span>اللغة<small>${LANG==='en'?'English':'العربية'} — Language</small></span>‹</button>
     <button class="mi2" id="mRate"><span class="mic">⭐</span><span>قيّم فاتورتي<small>رأيك يساعدنا نطوّر التطبيق</small></span>‹</button>
     <button class="mi2" id="mShare"><span class="mic">📣</span><span>شارك التطبيق<small>أرسله لربعك وأصحاب المحلات</small></span>‹</button>
    </div>
@@ -714,7 +878,7 @@ function renderMore(){
     <a href="mailto:design.omani1@gmail.com" dir="ltr">design.omani1@gmail.com</a>
     <a href="https://techlights.app" target="_blank" rel="noopener" dir="ltr">🌐 techlights.app</a>
    </footer>`;
-  bindPro();$('#mRate').onclick=openRate;$('#mShare').onclick=shareApp;
+  bindPro();$('#mRate').onclick=openRate;$('#mLang').onclick=()=>setLang(LANG==='en'?'ar':'en');$('#mShare').onclick=shareApp;
   $('#mBiz').onclick=()=>{step=0;draft=null;view='ob';render()};
   $('#mExp').onclick=exportBackup;
   $('#mLogo').onchange=e=>readLogo(e.target.files[0],u=>{S.biz.logo=u;save();toast('تم تحديث الشعار ✓');renderMore()});
@@ -739,7 +903,7 @@ const isAr=s=>/[؀-ۿ]/.test(String(s));
 /* body text a little larger for readability; big titles stay as designed */
 const UP=z=>z<=36?Math.round(z*1.14):z;
 function kit(x,c){
-  const T=(s,px,py,{size=28,w=500,col=c['--pi'],al='right',f=BF,dir}={})=>{x.font=`${w} ${UP(size)}px ${f}`;x.fillStyle=col;x.textAlign=al;x.direction=dir||(isAr(s)?'rtl':'ltr');x.textBaseline='alphabetic';x.fillText(String(s),px,py)};
+  const T=(s,px,py,{size=28,w=500,col=c['--pi'],al='right',f=BF,dir}={})=>{s=IL(s);if(CTXLANG==='en')dir=null;x.font=`${w} ${UP(size)}px ${f}`;x.fillStyle=col;x.textAlign=al;x.direction=dir||(isAr(s)?'rtl':'ltr');x.textBaseline='alphabetic';x.fillText(String(s),px,py)};
   const M=(s,size,w=500,f=BF)=>{x.font=`${w} ${UP(size)}px ${f}`;return x.measureText(String(s)).width};
   const fit=(s,maxW,size,w=500)=>{s=String(s);if(M(s,size,w)<=maxW)return s;while(s.length>2&&M(s+'…',size,w)>maxW)s=s.slice(0,-1);return s+'…'};
   const wrap=(s,maxW,size,w=400,f=BF)=>{const out=[];String(s||'').split('\n').forEach(par=>{let line='';par.split(/\s+/).filter(Boolean).forEach(word=>{const t=line?line+' '+word:word;if(M(t,size,w,f)>maxW&&line){out.push(line);line=word}else line=t});if(line)out.push(line)});return out};
@@ -749,12 +913,12 @@ function kit(x,c){
   const vl=(a,b,h,col,lw)=>{x.fillStyle=col;x.fillRect(a-lw/2,b,lw,h)};
   const dia=(cx,cy,s,col,mode='fill',lw=4,back)=>{x.save();x.translate(cx,cy);x.rotate(Math.PI/4);if(back){x.fillStyle=back;x.fillRect(-s/2,-s/2,s,s)}if(mode==='fill'){x.fillStyle=col;x.fillRect(-s/2,-s/2,s,s)}else{x.strokeStyle=col;x.lineWidth=lw;x.strokeRect(-s/2,-s/2,s,s)}x.restore()};
   // "label : value" with the label on the right, value to its left (right-anchored)
-  const kv=(label,value,xr,y,o={})=>{const lt=label+' :';T(lt,xr,y,o);T(value,xr-M(lt,o.size||28,o.w||500)-14,y,{...o,al:'right'})};
+  const kv=(label,value,xr,y,o={})=>{const lt=IL(label)+(CTXLANG==='en'?':':' :');T(lt,xr,y,o);T(value,xr-M(lt,o.size||28,o.w||500)-14,y,{...o,al:'right'})};
   // same, anchored on the left edge: value first, label after it
-  const kvL=(label,value,xl,y,o={})=>{T(value,xl,y,{...o,al:'left'});T(label+' :',xl+M(value,o.size||28,o.w||500)+14,y,{...o,al:'left',dir:'rtl'})};
+  const kvL=(label,value,xl,y,o={})=>{T(value,xl,y,{...o,al:'left'});T(IL(label)+(CTXLANG==='en'?':':' :'),xl+M(value,o.size||28,o.w||500)+14,y,{...o,al:'left',dir:'rtl'})};
   return {T,M,fit,wrap,box,frame,hl,vl,dia,kv,kvL};
 }
-function stamp(x,cx,cy){x.save();x.translate(cx,cy);x.rotate(-0.1);x.strokeStyle='#1f8a4c';x.lineWidth=5;rr(x,-95,-38,190,76,14);x.stroke();x.font=`700 34px ${BF}`;x.fillStyle='#1f8a4c';x.textAlign='center';x.direction='rtl';x.fillText('مدفوعة',0,12);x.restore()}
+function stamp(x,cx,cy){x.save();x.translate(cx,cy);x.rotate(-0.1);x.strokeStyle='#1f8a4c';x.lineWidth=5;rr(x,-95,-38,190,76,14);x.stroke();x.font=`700 34px ${BF}`;x.fillStyle='#1f8a4c';x.textAlign='center';x.direction=CTXLANG==='en'?'ltr':'rtl';x.fillText(IL('مدفوعة'),0,12);x.restore()}
 function payRows(b){return [['البنك',b.bank],['اسم الحساب',b.accName],['رقم الحساب',b.accNo]].filter(r=>r[1])}
 function totRows(i,t){const r=[];if(t.disc||i.vat)r.push(['المجموع الفرعي',money(t.sub)]);if(t.disc)r.push(['الخصم','- '+money(t.disc)]);if(i.vat)r.push(['الضريبة (5%)',money(t.vat)]);if(t.dep){r.push(['العربون',money(t.dep)]);r.push(['المتبقي',money(t.rem)])}r.push(['المجموع الكلي',money(t.total),1]);return r}
 function star8(x,cx,cy,r,col,lw){x.save();x.translate(cx,cy);x.strokeStyle=col;x.lineWidth=lw;x.lineJoin='round';
@@ -906,14 +1070,17 @@ function drawGeneric(x,i,H,c,logo){
 function rr(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath()}
 async function drawInvoice(i){
   try{await Promise.all(['500 30px FTajawal','700 30px FTajawal','800 30px FCairo','600 30px FCairo'].map(f=>document.fonts.load(f,'عربي 123')));await document.fonts.ready}catch(e){}
-  const c=pv(),logo=await loadImg(S.biz.logo),tpl=design().tpl;
+  const logo=await loadImg(S.biz.logo),sig=isPro()&&S.biz.sig&&!S.biz.sigOff,sigIm=sig?await loadImg(S.biz.sig):null;
+  CTXLANG=invEN()?'en':'ar';const MW=g=>CTXLANG==='en'?mirrorCtx(g,1240):g;
+  try{
+  const c=pv(),tpl=design().tpl;
   const fn=tpl==='luxe'?drawLuxe:tpl==='ornate'?drawOrnate:drawGeneric;
   const tmp=document.createElement('canvas');tmp.width=1240;tmp.height=4800;
-  const sig=isPro()&&S.biz.sig&&!S.biz.sigOff;
-  SIGAT=null;const need=fn(tmp.getContext('2d'),i,4800,c,logo)+(sig&&tpl!=='ornate'?300:0);tmp.width=tmp.height=1;
+  SIGAT=null;const need=fn(MW(tmp.getContext('2d')),i,4800,c,logo)+(sigIm&&tpl!=='ornate'?300:0);tmp.width=tmp.height=1;
   const cv=document.createElement('canvas');cv.width=1240;cv.height=Math.max(1754,Math.ceil(need));
-  BOT=0;SIGAT=null;fn(cv.getContext('2d'),i,cv.height,c,logo);if(sig)await drawSig(cv.getContext('2d'),c,cv.height);
+  BOT=0;SIGAT=null;const g=MW(cv.getContext('2d'));fn(g,i,cv.height,c,logo);if(sigIm)drawSig(g,c,cv.height,sigIm);
   return cv;
+  }finally{CTXLANG=null}
 }
 /* minimal PDF writer: one page holding one JPEG */
 function canvasToPdf(cv){
@@ -1041,8 +1208,8 @@ function proSection(){
   if(!isPro())return `<button class="procard" id="goPro"><b>👑 فاتورتي برو</b><small>تنبيهات الفواتير · نسخ تلقائي · توقيع وختم · تصدير Excel</small><span class="go">اعرف أكثر</span></button>`;
   return `<div class="menu">
    <div class="mi2" style="cursor:default"><span class="mic">👑</span><span>فاتورتي برو<small style="color:var(--ok)">مفعّل ✓</small></span><button class="btn ghost" id="proMng" style="flex:0 0 auto;padding:8px 12px;font-size:14px">التفاصيل</button></div>
-   <button class="mi2" id="tgN"><span class="mic">🔔</span><span>تنبيهات الفواتير<small>يوم الاستحقاق، وبعد التأخير، وقبل انتهاء العرض</small></span><i class="sw ${proOpt('notif')?'on':''}"></i></button>
-   <button class="mi2" id="tgB"><span class="mic">☁️</span><span>نسخ احتياطي تلقائي<small>${S.lastAuto?'آخر نسخة: '+S.lastAuto.slice(0,16).replace('T',' '):'يحفظ نسخة كل يوم في «الملفات»'}</small></span><i class="sw ${proOpt('backup')?'on':''}"></i></button>
+   <button class="mi2" id="tgN"><span class="mic">🔔</span><span>تنبيهات الفواتير<small>يوم الاستحقاق، وبعد التأخير، وقبل انتهاء العرض</small></span><i class="tgl ${proOpt('notif')?'on':''}"></i></button>
+   <button class="mi2" id="tgB"><span class="mic">☁️</span><span>نسخ احتياطي تلقائي<small>${S.lastAuto?'آخر نسخة: '+S.lastAuto.slice(0,16).replace('T',' '):'يحفظ نسخة كل يوم في «الملفات»'}</small></span><i class="tgl ${proOpt('backup')?'on':''}"></i></button>
    ${NATIVE?'<button class="mi2" id="autoRes"><span class="mic">🗂️</span><span>استرجاع من النسخ التلقائية<small>اختر من آخر النسخ المحفوظة</small></span>‹</button>':''}
    <button class="mi2" id="sigEd"><span class="mic">✍️</span><span>التوقيع والختم<small>${S.biz.sig?'يطلع على الفواتير':'أضف توقيعك أو ختم نشاطك'}</small></span>‹</button>
    <button class="mi2" id="csv"><span class="mic">📊</span><span>تصدير Excel<small>كل الفواتير وعروض الأسعار في ملف واحد</small></span>‹</button>
@@ -1071,11 +1238,12 @@ function scheduleNotifs(){clearTimeout(nTimer);nTimer=setTimeout(async()=>{
   try{if((await L.checkPermissions()).display!=='granted')return}catch(e){return}
   await cancelNotifs();const now=Date.now(),list=[];
   S.invoices.filter(i=>!i.sample&&i.due&&i.status!=='paid').forEach(i=>{
-    if(isQ(i)){const t=at9(i.due,-1);if(t>now)list.push({id:nid(i.id,1),title:'عرض سعر ينتهي بكرة ⏳',body:`عرض السعر #${docNo(i)} لـ ${i.client||'عميل'} صالح لين ${i.due}`,schedule:{at:t}});return}
+    const E=EN(),who=i.client||(E?'a client':'عميل');
+    if(isQ(i)){const t=at9(i.due,-1);if(t>now)list.push({id:nid(i.id,1),title:E?'Quote expires tomorrow ⏳':'عرض سعر ينتهي بكرة ⏳',body:E?`Quote #${docNo(i)} for ${who} is valid until ${i.due}`:`عرض السعر #${docNo(i)} لـ ${who} صالح لين ${i.due}`,schedule:{at:t}});return}
     const amt=money(calc(i).rem);
-    [[0,'فاتورة مستحقة اليوم 🧾',`الفاتورة #${docNo(i)} لـ ${i.client||'عميل'} بمبلغ ${amt} مستحقة اليوم`],
+    (E?[[0,'Invoice due today 🧾',`Invoice #${docNo(i)} for ${who} (${amt}) is due today`],[3,'Invoice overdue ⚠️',`Invoice #${docNo(i)} for ${who} (${amt}) is 3 days late — remind them on WhatsApp`],[7,'Invoice a week overdue ⚠️',`Invoice #${docNo(i)} for ${who} (${amt}) is still unpaid`]]:[[0,'فاتورة مستحقة اليوم 🧾',`الفاتورة #${docNo(i)} لـ ${i.client||'عميل'} بمبلغ ${amt} مستحقة اليوم`],
      [3,'فاتورة متأخرة ⚠️',`الفاتورة #${docNo(i)} لـ ${i.client||'عميل'} (${amt}) متأخرة 3 أيام — ذكّره بالواتساب`],
-     [7,'فاتورة متأخرة أسبوع ⚠️',`الفاتورة #${docNo(i)} لـ ${i.client||'عميل'} (${amt}) ما انسددت للحين`]].forEach(([d,t,b],k)=>{const w=at9(i.due,d);if(w>now)list.push({id:nid(i.id,k+2),title:t,body:b,schedule:{at:w},extra:{inv:i.id}})});
+     [7,'فاتورة متأخرة أسبوع ⚠️',`الفاتورة #${docNo(i)} لـ ${i.client||'عميل'} (${amt}) ما انسددت للحين`]]).forEach(([d,t,b],k)=>{const w=at9(i.due,d);if(w>now)list.push({id:nid(i.id,k+2),title:t,body:b,schedule:{at:w},extra:{inv:i.id}})});
   });
   list.sort((a,b)=>a.schedule.at-b.schedule.at);
   try{if(list.length)await L.schedule({notifications:list.slice(0,60)})}catch(e){}
@@ -1111,8 +1279,8 @@ async function autoRestoreList(){
 function exportCsv(){
   const q=v=>{const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
   const st={paid:'مدفوعة',sent:'مرسلة',draft:'مسودة'};
-  const rows=[['النوع','الرقم','التاريخ','الاستحقاق','العميل','الهاتف','المجموع الفرعي','الخصم','الضريبة','الإجمالي','العربون','المتبقي','الحالة','ملاحظات']];
-  sortDocs(S.invoices.filter(i=>!i.sample)).forEach(i=>{const t=calc(i);rows.push([docName(i),docNo(i),i.date,i.due||'',i.client||'',i.cphone||'',t.sub,t.disc,t.vat,t.total,t.dep,isQ(i)?'':owed(i),isQ(i)?'':(i.status==='paid'?'مدفوعة':overdue(i)?'متأخرة':st[i.status]||'غير مدفوعة'),i.notes||''])});
+  const E=EN();const rows=[E?['Type','No','Date','Due','Client','Phone','Subtotal','Discount','VAT','Total','Deposit','Balance','Status','Notes']:['النوع','الرقم','التاريخ','الاستحقاق','العميل','الهاتف','المجموع الفرعي','الخصم','الضريبة','الإجمالي','العربون','المتبقي','الحالة','ملاحظات']];
+  sortDocs(S.invoices.filter(i=>!i.sample)).forEach(i=>{const t=calc(i);rows.push([E?(isQ(i)?'Quote':'Invoice'):docName(i),docNo(i),i.date,i.due||'',i.client||'',i.cphone||'',t.sub,t.disc,t.vat,t.total,t.dep,isQ(i)?'':owed(i),isQ(i)?'':(E?(i.status==='paid'?'Paid':overdue(i)?'Overdue':'Unpaid'):(i.status==='paid'?'مدفوعة':overdue(i)?'متأخرة':st[i.status]||'غير مدفوعة')),i.notes||''])});
   const csv='﻿'+rows.map(r=>r.map(q).join(',')).join('\r\n');
   const name=`fatoorti-${today()}.csv`,f=new File([csv],name,{type:'text/csv'});
   if(NATIVE){nativeShare(f,name,'فواتير فاتورتي').catch(()=>{});return}
@@ -1150,13 +1318,13 @@ function trimSig(cv){const d=cv.getContext('2d').getImageData(0,0,cv.width,cv.he
   const p=12;a=Math.max(0,a-p);b=Math.max(0,b-p);c=Math.min(cv.width,c+p);e=Math.min(cv.height,e+p);
   const o=document.createElement('canvas');o.width=c-a;o.height=e-b;o.getContext('2d').drawImage(cv,a,b,c-a,e-b,0,0,c-a,e-b);return o.toDataURL('image/png')}
 let BOT=0,SIGAT=null;
-async function drawSig(x,c,H){const b=S.biz;if(!isPro()||!b.sig||b.sigOff)return;const im=await loadImg(b.sig);if(!im)return;
+function drawSig(x,c,H,im){if(!im)return;
   const L=110,maxW=330,maxH=150,s=Math.min(maxW/im.width,maxH/im.height,1.6),w=im.width*s,h=im.height*s;
   if(SIGAT){const s2=Math.min(SIGAT.w/im.width,140/im.height,1.6),w2=im.width*s2,h2=im.height*s2;x.drawImage(im,SIGAT.x+(SIGAT.w-w2)/2,SIGAT.base-h2,w2,h2);return}
   const base=Math.min(BOT||H-120,H-120)-40;
   x.drawImage(im,L+(maxW-w)/2,base-h-50,w,h);
   x.fillStyle=c['--pm'];x.fillRect(L,base-36,maxW,2);
-  x.font=`600 26px ${BF}`;x.fillStyle=c['--pm'];x.textAlign='center';x.direction='rtl';x.fillText('التوقيع / الختم',L+maxW/2,base);
+  x.font=`600 26px ${BF}`;x.fillStyle=c['--pm'];x.textAlign='center';x.direction=CTXLANG==='en'?'ltr':'rtl';x.fillText(IL('التوقيع / الختم'),L+maxW/2,base);
 }
 
 if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
