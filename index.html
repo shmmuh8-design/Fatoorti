@@ -260,7 +260,7 @@ input[type=date].in{-webkit-appearance:none;appearance:none;min-width:0;min-heig
 .sigbox{width:100%;height:150px;border:2px dashed var(--line);border-radius:16px;background:#fff;touch-action:none;display:block}
 body.en{direction:ltr}
 body.en textarea,body.en .big{text-align:left!important}
-body.en .mi2,body.en .pf,body.en .procard{text-align:left}
+body.en .mi2,body.en .pf,body.en .procard,body.en .alert,body.en .inv,body.en .rowcard,body.en input[type=date].in,body.en .pw h1{text-align:left!important}
 </style>
 </head>
 <body>
@@ -398,8 +398,8 @@ const I18N={
  'تم استرجاع اشتراكك ✓':'Subscription restored ✓','ما لقينا اشتراك على هذا الحساب':'No subscription found on this account','تم تعيينها مدفوعة ✓':'Marked as paid ✓','تم تعيينها مستحقة':'Marked as due','تم حذف الصورة':'Image removed',
 };
 const I18N_RX=[
- [/^(\d+) صنف$/,m=>`${m[1]} items`],[/^(\d+) عميل$/,m=>`${m[1]} clients`],[/^(\d+) فاتورة$/,m=>`${m[1]} invoices`],[/^(\d+) عرض سعر$/,m=>`${m[1]} quotes`],
- [/^(\d+) فاتورة · (.+)$/,m=>`${m[1]} invoices · ${m[2]}`],[/^(\d+) فاتورة غير مدفوعة$/,m=>`${m[1]} unpaid invoices`],
+ [/^(\d+) صنف$/,m=>`${m[1]} item${m[1]==='1'?'':'s'}`],[/^(\d+) عميل$/,m=>`${m[1]} client${m[1]==='1'?'':'s'}`],[/^(\d+) فاتورة$/,m=>`${m[1]} invoice${m[1]==='1'?'':'s'}`],[/^(\d+) عرض سعر$/,m=>`${m[1]} quote${m[1]==='1'?'':'s'}`],
+ [/^(\d+) فاتورة · (.+)$/,m=>`${m[1]} invoice${m[1]==='1'?'':'s'} · ${m[2]}`],[/^(\d+) فاتورة غير مدفوعة$/,m=>`${m[1]} unpaid invoices`],
  [/^⏰ متأخرة (\d+) يوم$/,m=>`⏰ ${m[1]} days overdue`],[/^باقي (.+)$/,m=>`Due ${m[1]}`],
  [/^فاتورة #(.+)$/,m=>`Invoice #${m[1]}`],[/^عرض سعر #(.+)$/,m=>`Quote #${m[1]}`],
  [/^حذف فاتورة #(.+) نهائياً؟$/,m=>`Delete invoice #${m[1]} permanently?`],[/^حذف عرض سعر #(.+) نهائياً؟$/,m=>`Delete quote #${m[1]} permanently?`],
