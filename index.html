@@ -232,6 +232,32 @@ input[type=date].in{-webkit-appearance:none;appearance:none;min-width:0;min-heig
   .sheet-wrap{box-shadow:none;border-radius:0}
   .toast{display:none}
 }
+/* فاتورتي برو */
+.procard{position:relative;overflow:hidden;border-radius:22px;padding:18px;margin-bottom:14px;color:#fff;background:linear-gradient(135deg,#1b2f6e,#2c4aa8 60%,#3a5bd0);box-shadow:0 10px 30px rgba(27,47,110,.3);border:0;width:100%;text-align:right;display:block}
+.procard::after{content:"";position:absolute;width:180px;height:180px;border-radius:50%;left:-60px;top:-70px;background:radial-gradient(circle,rgba(227,187,74,.45),transparent 70%)}
+.procard b{font:800 20px var(--f-display);display:flex;align-items:center;gap:8px}
+.procard small{display:block;opacity:.85;font-weight:500;margin-top:4px;font-size:14px}
+.procard .go{display:inline-block;margin-top:12px;background:var(--gold);color:#1b2f6e;font-weight:800;padding:9px 16px;border-radius:999px;font-size:14px}
+.crown{display:inline-grid;place-items:center;background:var(--gold);color:#1b2f6e;border-radius:8px;font:800 11px var(--f-body);padding:2px 7px;margin-inline-start:6px;vertical-align:middle}
+.pw h1{text-align:center;font-size:30px;margin-top:6px}
+.pw .hero{text-align:center;font-size:58px;margin-top:8px}
+.pw p.sub{text-align:center;color:var(--muted);margin:6px 0 18px}
+.pf{display:flex;gap:12px;align-items:flex-start;padding:12px 4px;border-bottom:1px solid var(--line)}
+.pf:last-child{border-bottom:0}
+.pf i{font-style:normal;font-size:22px;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:var(--soft);flex:0 0 auto}
+.pf b{display:block}.pf small{color:var(--muted);font-size:13px}
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 10px}
+.plan{border:2px solid var(--line);background:var(--surface);border-radius:18px;padding:14px 10px;text-align:center;position:relative}
+.plan.sel{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,162,39,.2)}
+.plan b{display:block;font:800 17px var(--f-display)}.plan .pr{display:block;font:800 20px var(--f-body);margin-top:6px;direction:ltr}
+.plan small{color:var(--muted);font-size:12px}
+.plan .tag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--gold);color:#1b2f6e;font-size:11px;font-weight:800;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.legal{font-size:12px;color:var(--muted);text-align:center;line-height:1.7;margin-top:12px}
+.legal a{color:var(--accent)}
+.sw{width:46px;height:28px;border-radius:999px;background:var(--line);position:relative;flex:0 0 auto;transition:.2s}
+.sw::after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.sw.on{background:var(--ok)}.sw.on::after{right:21px}
+.sigbox{width:100%;height:150px;border:2px dashed var(--line);border-radius:16px;background:#fff;touch-action:none;display:block}
 </style>
 </head>
 <body>
@@ -257,7 +283,7 @@ const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function load(){try{const v=JSON.parse(localStorage.getItem(KEY));if(v)return v}catch(e){}return{biz:null,invoices:[],clients:[],products:[],seq:1,qseq:1,v2:true,v3:true}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('تعذّر الحفظ: مساحة الجهاز ممتلئة')}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('تعذّر الحفظ: مساحة الجهاز ممتلئة')}if(isPro()){scheduleNotifs();autoBackup()}}
 function migrate(){
   S.invoices=S.invoices||[];
   if(!S.v2){[...S.invoices].sort((a,b)=>a.no-b.no).forEach((inv,k)=>inv.no=k+1);S.seq=S.invoices.length+1;S.v2=true}
@@ -665,6 +691,7 @@ function renderMore(){
   const b=S.biz;
   $('#app').innerHTML=`
    <div class="ptitle"><div><small>الإعدادات</small><h1>المزيد</h1></div></div>
+   ${proSection()}
    <div class="menu">
     <button class="mi2" id="mBiz"><span class="mic">🏪</span><span>بيانات النشاط<small>الاسم، الهاتف، العنوان، معلومات الدفع</small></span>‹</button>
     <div class="mi2" style="cursor:default"><span class="mic" style="overflow:hidden;padding:0">${b.logo?`<img src="${b.logo}" alt="" style="width:100%;height:100%;object-fit:contain;background:#fff">`:'🖼️'}</span><span>الشعار<small>${b.logo?'يظهر على كل فاتورة':'ما فيه شعار'}</small></span>
@@ -683,6 +710,7 @@ function renderMore(){
     <a href="mailto:design.omani1@gmail.com" dir="ltr">design.omani1@gmail.com</a>
     <a href="https://techlights.app" target="_blank" rel="noopener" dir="ltr">🌐 techlights.app</a>
    </footer>`;
+  bindPro();
   $('#mBiz').onclick=()=>{step=0;draft=null;view='ob';render()};
   $('#mExp').onclick=exportBackup;
   $('#mLogo').onchange=e=>readLogo(e.target.files[0],u=>{S.biz.logo=u;save();toast('تم تحديث الشعار ✓');renderMore()});
@@ -774,7 +802,7 @@ function drawLuxe(x,i,H,c,logo){
   const tl=wrap(b.terms,580,26),boxH=b.terms?130+tl.length*40:0;
   const info=[b.phone,b.address,b.cr?'س.ت: '+b.cr:''].filter(Boolean),infoH=info.length?80+info.length*54:0;
   const bh=Math.max(boxH,infoH),need=y4+90+bh+P;
-  const by=H-P-bh;
+  const by=H-P-bh;BOT=by;
   if(boxH){box(0,by,700,boxH+P,pa);T('الشروط والأحكام :',650,by+70,{size:32,w:800,f:DF,col:pc});tl.forEach((l,k)=>T(l,650,by+122+k*40,{size:26,col:pc,dir:'rtl'}))}
   if(infoH){T('بيانات النشاط :',R,by+70,{size:34,w:800,f:DF});info.forEach((l,k)=>T(l,R,by+128+k*54,{size:30}))}
   return need;
@@ -812,14 +840,14 @@ function drawOrnate(x,i,H,c,logo){
   totRows(i,t).forEach(([lab,val,big])=>{if(big){box(L,ty-48,TW,72,pa);T(lab+' :',L+TW-24,ty,{size:34,w:800,f:DF,col:pc});T(val,L+24,ty,{size:34,w:800,f:DF,col:pc,al:'left'})}else{T(lab+' :',L+TW-24,ty,{size:30});T(val,L+24,ty,{size:30,al:'left'})}ty+=62});
   let py=ty+30;const pr=payRows(b);
   if(pr.length){T('معلومات الدفع :',R,py,{size:34,w:800,f:DF});pr.forEach(([l,v])=>{py+=56;kv(l,fit(v,R-L-120-M(l+' :',30),30),R,py,{size:30})})}
-  let sy=Math.max(ty,py)+110;
+  const sgOn=isPro()&&S.biz.sig&&!S.biz.sigOff;let sy=Math.max(ty,py)+(sgOn?260:110);if(sgOn)SIGAT={x:L+40,w:400,base:sy-14};
   hl(L+40,sy,400,c['--pi'],3);T(fit(b.name,400,28,700),L+240,sy+46,{size:28,w:700,al:'center'});
   if(!isQ(i)&&i.status==='paid')stamp(x,W/2+110,sy-10);
   let y5=sy+60;
   if(i.notes){y5+=60;T(fit(i.notes,R-L,28),R,y5,{size:28,col:pm})}
   if(b.terms){y5+=80;T('الشروط والأحكام :',R,y5,{size:34,w:800,f:DF});wrap(b.terms,760,26).forEach(l=>{y5+=42;T(l,R,y5,{size:26,dir:'rtl'})})}
   const foot=[b.phone,b.address,b.cr?'س.ت: '+b.cr:''].filter(Boolean).join('   ·   ');
-  if(foot)T(foot,W/2,H-F-46,{size:24,col:pm,al:'center',dir:'rtl'});
+  BOT=H-F-90;if(foot)T(foot,W/2,H-F-46,{size:24,col:pm,al:'center',dir:'rtl'});
   return y5+150;
 }
 
@@ -867,7 +895,7 @@ function drawGeneric(x,i,H,c,logo){
   if(!isQ(i)&&i.status==='paid'){stamp(x,R-95,y+30);y+=100}
   const pr=payRows(b);if(pr.length){y+=30;T('معلومات الدفع',R,y,{size:28,w:700});pr.forEach(([l,v])=>{y+=44;kit(x,c).kv(l,v,R,y,{size:26})});y+=20}
   const foot=[];if(i.notes)foot.push(i.notes);if(b.terms)foot.push(...kit(x,c).wrap(b.terms,R-L,22));if(b.cr)foot.push('س.ت: '+b.cr);
-  const fh=foot.length*36;let fy=Math.max(y+60,H-(tpl==='omani'?110:90)-fh);
+  const fh=foot.length*36;let fy=Math.max(y+60,H-(tpl==='omani'?110:90)-fh);BOT=fy-40;
   foot.forEach(l=>{T(l,W/2,fy,{size:22,col:c['--pm'],al:'center',dir:'rtl'});fy+=36});
   return y+60+fh+120;
 }
@@ -877,9 +905,10 @@ async function drawInvoice(i){
   const c=pv(),logo=await loadImg(S.biz.logo),tpl=design().tpl;
   const fn=tpl==='luxe'?drawLuxe:tpl==='ornate'?drawOrnate:drawGeneric;
   const tmp=document.createElement('canvas');tmp.width=1240;tmp.height=4800;
-  const need=fn(tmp.getContext('2d'),i,4800,c,logo);tmp.width=tmp.height=1;
+  const sig=isPro()&&S.biz.sig&&!S.biz.sigOff;
+  SIGAT=null;const need=fn(tmp.getContext('2d'),i,4800,c,logo)+(sig&&tpl!=='ornate'?300:0);tmp.width=tmp.height=1;
   const cv=document.createElement('canvas');cv.width=1240;cv.height=Math.max(1754,Math.ceil(need));
-  fn(cv.getContext('2d'),i,cv.height,c,logo);
+  BOT=0;SIGAT=null;fn(cv.getContext('2d'),i,cv.height,c,logo);if(sig)await drawSig(cv.getContext('2d'),c,cv.height);
   return cv;
 }
 /* minimal PDF writer: one page holding one JPEG */
@@ -924,12 +953,202 @@ function openPdf(){
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
 
+/* ---------- فاتورتي برو: الاشتراك والمميزات ---------- */
+const PRO_IDS={m:'com.salemaljabri.Fatoorti.pro.monthly',y:'com.salemaljabri.Fatoorti.pro.yearly'};
+const EULA='https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+var PRO={on:false,ready:false,prices:{},plan:'y',busy:false};
+try{PRO.on=localStorage.getItem('fatoorti.pro')==='1'}catch(e){}
+const proSet=v=>{PRO.on=!!v;try{localStorage.setItem('fatoorti.pro',v?'1':'0')}catch(e){};if(PRO.on){scheduleNotifs();autoBackup(true)}};
+function isPro(){return !!(PRO&&PRO.on)}
+function proStore(){return window.CdvPurchase&&CdvPurchase.store}
+function initPro(){
+  if(!NATIVE)return;
+  const go=()=>{const st=proStore();if(!st)return;const {ProductType,Platform}=CdvPurchase;
+    st.register([{id:PRO_IDS.m,type:ProductType.PAID_SUBSCRIPTION,platform:Platform.APPLE_APPSTORE},{id:PRO_IDS.y,type:ProductType.PAID_SUBSCRIPTION,platform:Platform.APPLE_APPSTORE}]);
+    st.when().approved(t=>t.finish()).finished(()=>refreshPro()).productUpdated(()=>{readPrices();refreshPro()}).receiptUpdated(()=>refreshPro());
+    st.error(e=>{PRO.busy=false;if(e&&e.code!==6777006)toast('تعذّر الاتصال بالمتجر')});
+    st.initialize([Platform.APPLE_APPSTORE]).then(()=>{PRO.ready=true;readPrices();refreshPro()});
+  };
+  if(window.CdvPurchase)go();else document.addEventListener('deviceready',go,{once:true});
+}
+function readPrices(){const st=proStore();if(!st)return;['m','y'].forEach(k=>{const p=st.get(PRO_IDS[k]);const pr=p&&p.pricing;if(pr)PRO.prices[k]=pr.price});if(view==='pro')renderPro()}
+function refreshPro(){const st=proStore();if(!st)return;const own=st.owned(PRO_IDS.m)||st.owned(PRO_IDS.y);
+  const was=PRO.on;if(PRO.ready&&own!==was){proSet(own);if(own){PRO.busy=false;toast('مرحباً بك في فاتورتي برو 👑');if(view==='pro'){view='more'}render()}else if(view==='more')renderMore()}}
+async function buyPro(){
+  if(!NATIVE){toast('الاشتراك متوفر في تطبيق فاتورتي على الآيفون');return}
+  const st=proStore();const p=st&&st.get(PRO_IDS[PRO.plan]);const o=p&&p.getOffer();
+  if(!o){toast('المتجر غير جاهز، حاول بعد لحظات');return}
+  PRO.busy=true;renderPro();
+  const err=await o.order();if(err){PRO.busy=false;renderPro();if(err.code!==CdvPurchase.ErrorCode.PAYMENT_CANCELLED)toast('ما تمت العملية')}
+}
+async function restorePro(){
+  if(!NATIVE){toast('الاسترجاع من تطبيق الآيفون');return}
+  const st=proStore();if(!st)return;toast('جارٍ استرجاع المشتريات…');
+  try{await st.restorePurchases()}catch(e){}
+  setTimeout(()=>{refreshPro();toast(PRO.on?'تم استرجاع اشتراكك ✓':'ما لقينا اشتراك على هذا الحساب')},1500);
+}
+function needPro(){if(isPro())return true;view='pro';render();return false}
+
+/* شاشة الاشتراك */
+const PRO_FEATS=[
+ ['🔔','تنبيهات الفواتير','يذكّرك يوم الاستحقاق، وإذا تأخر العميل، وقبل انتهاء عرض السعر'],
+ ['☁️','نسخ احتياطي تلقائي','نسخة يومية تنحفظ لحالها في «الملفات» على جوالك ونسخة iCloud للجهاز'],
+ ['✍️','التوقيع والختم','وقّع بإصبعك أو أضف ختم نشاطك، ويطلع على كل فاتورة'],
+ ['📊','تصدير Excel','كل الفواتير في ملف جاهز للمحاسب'],
+];
+function renderPro(){
+  const pr=k=>PRO.prices[k]||'—';
+  $('#app').innerHTML=`<div class="pw">
+   <div class="ptitle"><div><small>اشتراك</small><h1 style="text-align:right;margin:0">فاتورتي برو</h1></div><button class="btn ghost" id="pwBack" style="flex:0 0 auto">رجوع</button></div>
+   <div class="hero">👑</div>
+   <p class="sub">مميزات إضافية لأصحاب الأعمال — وكل المميزات الحالية تظل مجانية</p>
+   <div class="panel">${PRO_FEATS.map(([i,b,s])=>`<div class="pf"><i>${i}</i><span><b>${b}</b><small>${s}</small></span></div>`).join('')}</div>
+   ${PRO.on?`<div class="panel" style="text-align:center"><b style="color:var(--ok)">✓ أنت مشترك في فاتورتي برو</b><p class="legal">تقدر تدير أو تلغي اشتراكك من إعدادات حسابك في آبل</p></div>`:`
+   <div class="plans">
+    <button class="plan ${PRO.plan==='m'?'sel':''}" data-plan="m"><b>شهري</b><span class="pr">${pr('m')}</span><small>كل شهر</small></button>
+    <button class="plan ${PRO.plan==='y'?'sel':''}" data-plan="y"><span class="tag">الأوفر</span><b>سنوي</b><span class="pr">${pr('y')}</span><small>كل سنة</small></button>
+   </div>
+   <button class="btn" id="pwBuy" ${PRO.busy?'disabled':''} style="width:100%;background:linear-gradient(135deg,#c9a227,#e3bb4a);color:#1b2f6e">${PRO.busy?'جارٍ…':'اشترك الحين'}</button>`}
+   <button class="btn ghost" id="pwRestore" style="width:100%;margin-top:10px">استرجاع المشتريات</button>
+   <p class="legal">${NATIVE?'':'الاشتراك متوفر داخل تطبيق فاتورتي على الآيفون.<br>'}الاشتراك يتجدد تلقائياً بنفس السعر في نهاية كل فترة، إلا إذا ألغيته قبل نهايتها بـ 24 ساعة على الأقل من إعدادات حسابك في آبل. المبلغ يُخصم من حساب Apple ID عند تأكيد الشراء.<br>
+   <a href="${EULA}" target="_blank" rel="noopener">شروط الاستخدام (EULA)</a> · <a href="privacy.html" target="_blank" rel="noopener">سياسة الخصوصية</a></p></div>`;
+  $('#pwBack').onclick=()=>{view='more';render()};
+  $$('[data-plan]').forEach(b=>b.onclick=()=>{PRO.plan=b.dataset.plan;renderPro()});
+  $('#pwBuy')&&($('#pwBuy').onclick=buyPro);
+  $('#pwRestore').onclick=restorePro;
+}
+
+/* إعدادات برو في «المزيد» */
+const proOpt=k=>{const o=S.pro||{};return o[k]!==false};
+function proSection(){
+  if(!isPro())return `<button class="procard" id="goPro"><b>👑 فاتورتي برو</b><small>تنبيهات الفواتير · نسخ تلقائي · توقيع وختم · تصدير Excel</small><span class="go">اعرف أكثر</span></button>`;
+  return `<div class="menu">
+   <div class="mi2" style="cursor:default"><span class="mic">👑</span><span>فاتورتي برو<small style="color:var(--ok)">مفعّل ✓</small></span><button class="btn ghost" id="proMng" style="flex:0 0 auto;padding:8px 12px;font-size:14px">التفاصيل</button></div>
+   <button class="mi2" id="tgN"><span class="mic">🔔</span><span>تنبيهات الفواتير<small>يوم الاستحقاق، وبعد التأخير، وقبل انتهاء العرض</small></span><i class="sw ${proOpt('notif')?'on':''}"></i></button>
+   <button class="mi2" id="tgB"><span class="mic">☁️</span><span>نسخ احتياطي تلقائي<small>${S.lastAuto?'آخر نسخة: '+S.lastAuto.slice(0,16).replace('T',' '):'يحفظ نسخة كل يوم في «الملفات»'}</small></span><i class="sw ${proOpt('backup')?'on':''}"></i></button>
+   ${NATIVE?'<button class="mi2" id="autoRes"><span class="mic">🗂️</span><span>استرجاع من النسخ التلقائية<small>اختر من آخر النسخ المحفوظة</small></span>‹</button>':''}
+   <button class="mi2" id="sigEd"><span class="mic">✍️</span><span>التوقيع والختم<small>${S.biz.sig?'يطلع على الفواتير':'أضف توقيعك أو ختم نشاطك'}</small></span>‹</button>
+   <button class="mi2" id="csv"><span class="mic">📊</span><span>تصدير Excel<small>كل الفواتير وعروض الأسعار في ملف واحد</small></span>‹</button>
+  </div>`;
+}
+function bindPro(){
+  $('#goPro')&&($('#goPro').onclick=()=>{view='pro';render()});
+  $('#proMng')&&($('#proMng').onclick=()=>{view='pro';render()});
+  const tg=k=>{S.pro=S.pro||{};S.pro[k]=!proOpt(k);save();renderMore()};
+  $('#tgN')&&($('#tgN').onclick=async()=>{tg('notif');if(proOpt('notif')){const ok=await askNotif();if(!ok){toast('فعّل الإشعارات من إعدادات الآيفون');}scheduleNotifs()}else cancelNotifs()});
+  $('#tgB')&&($('#tgB').onclick=()=>{tg('backup');if(proOpt('backup'))autoBackup(true)});
+  $('#autoRes')&&($('#autoRes').onclick=autoRestoreList);
+  $('#sigEd')&&($('#sigEd').onclick=()=>{view='sig';render()});
+  $('#csv')&&($('#csv').onclick=exportCsv);
+}
+
+/* 🔔 التنبيهات */
+const LN=()=>NATIVE&&Capacitor.Plugins.LocalNotifications;
+async function askNotif(){const L=LN();if(!L)return false;try{let p=await L.checkPermissions();if(p.display!=='granted')p=await L.requestPermissions();return p.display==='granted'}catch(e){return false}}
+async function cancelNotifs(){const L=LN();if(!L)return;try{const p=await L.getPending();if(p.notifications.length)await L.cancel({notifications:p.notifications.map(n=>({id:n.id}))})}catch(e){}}
+const nid=(s,k)=>{let h=k*7919;for(const ch of String(s))h=(h*31+ch.charCodeAt(0))|0;return Math.abs(h)%2000000000};
+const at9=(d,add)=>{const t=new Date(d+'T09:00:00');t.setDate(t.getDate()+(add||0));return t};
+let nTimer;
+function scheduleNotifs(){clearTimeout(nTimer);nTimer=setTimeout(async()=>{
+  const L=LN();if(!L||!isPro()||!proOpt('notif')||!S.biz)return;
+  try{if((await L.checkPermissions()).display!=='granted')return}catch(e){return}
+  await cancelNotifs();const now=Date.now(),list=[];
+  S.invoices.filter(i=>!i.sample&&i.due&&i.status!=='paid').forEach(i=>{
+    if(isQ(i)){const t=at9(i.due,-1);if(t>now)list.push({id:nid(i.id,1),title:'عرض سعر ينتهي بكرة ⏳',body:`عرض السعر #${docNo(i)} لـ ${i.client||'عميل'} صالح لين ${i.due}`,schedule:{at:t}});return}
+    const amt=money(calc(i).rem);
+    [[0,'فاتورة مستحقة اليوم 🧾',`الفاتورة #${docNo(i)} لـ ${i.client||'عميل'} بمبلغ ${amt} مستحقة اليوم`],
+     [3,'فاتورة متأخرة ⚠️',`الفاتورة #${docNo(i)} لـ ${i.client||'عميل'} (${amt}) متأخرة 3 أيام — ذكّره بالواتساب`],
+     [7,'فاتورة متأخرة أسبوع ⚠️',`الفاتورة #${docNo(i)} لـ ${i.client||'عميل'} (${amt}) ما انسددت للحين`]].forEach(([d,t,b],k)=>{const w=at9(i.due,d);if(w>now)list.push({id:nid(i.id,k+2),title:t,body:b,schedule:{at:w},extra:{inv:i.id}})});
+  });
+  list.sort((a,b)=>a.schedule.at-b.schedule.at);
+  try{if(list.length)await L.schedule({notifications:list.slice(0,60)})}catch(e){}
+},1500)}
+
+/* ☁️ النسخ التلقائي في مجلد المستندات (يظهر في تطبيق الملفات ويدخل في نسخة iCloud للجهاز) */
+const FS=()=>NATIVE&&Capacitor.Plugins.Filesystem;
+let bTimer;
+function autoBackup(now){clearTimeout(bTimer);bTimer=setTimeout(async()=>{
+  const F=FS();if(!F||!isPro()||!proOpt('backup')||!S.biz)return;
+  const data=JSON.stringify({app:'fatoorti',v:3,at:new Date().toISOString(),data:S});
+  try{
+    await F.mkdir({path:'نسخ فاتورتي',directory:'DOCUMENTS',recursive:true}).catch(()=>{});
+    await F.writeFile({path:`نسخ فاتورتي/فاتورتي-${today()}.json`,data,directory:'DOCUMENTS',encoding:'utf8'});
+    const r=await F.readdir({path:'نسخ فاتورتي',directory:'DOCUMENTS'});
+    const files=r.files.map(f=>typeof f==='string'?f:f.name).filter(n=>/^فاتورتي-\d{4}-\d\d-\d\d\.json$/.test(n)).sort();
+    for(const old of files.slice(0,-14))await F.deleteFile({path:'نسخ فاتورتي/'+old,directory:'DOCUMENTS'}).catch(()=>{});
+    S.lastAuto=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  }catch(e){}
+},now?50:4000)}
+async function autoRestoreList(){
+  const F=FS();if(!F)return;let files=[];
+  try{const r=await F.readdir({path:'نسخ فاتورتي',directory:'DOCUMENTS'});files=r.files.map(f=>typeof f==='string'?f:f.name).filter(n=>n.endsWith('.json')).sort().reverse()}catch(e){}
+  if(!files.length){toast('ما فيه نسخ تلقائية للحين');return}
+  $('#app').innerHTML=`<div class="ptitle"><div><small>النسخ التلقائية</small><h1>اختر نسخة</h1></div><button class="btn ghost" id="arBack" style="flex:0 0 auto">رجوع</button></div>
+   <div class="menu">${files.map(f=>`<button class="mi2" data-f="${esc(f)}"><span class="mic">🗂️</span><span>${esc(f.replace('فاتورتي-','').replace('.json',''))}<small>نسخة يوم كامل</small></span>‹</button>`).join('')}</div>
+   <p class="empty">تلقى نفس الملفات في تطبيق «الملفات» ← على الـiPhone ← فاتورتي</p>`;
+  $('#arBack').onclick=()=>renderMore();
+  $$('[data-f]').forEach(b=>b.onclick=async()=>{try{const r=await F.readFile({path:'نسخ فاتورتي/'+b.dataset.f,directory:'DOCUMENTS',encoding:'utf8'});const j=JSON.parse(r.data),d=j.data||j;if(!d.biz||!Array.isArray(d.invoices))throw 0;pendingImport=d;renderMore()}catch(e){toast('تعذّر فتح النسخة')}});
+}
+
+/* 📊 تصدير Excel (CSV يفتح في Excel و Numbers) */
+function exportCsv(){
+  const q=v=>{const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+  const st={paid:'مدفوعة',sent:'مرسلة',draft:'مسودة'};
+  const rows=[['النوع','الرقم','التاريخ','الاستحقاق','العميل','الهاتف','المجموع الفرعي','الخصم','الضريبة','الإجمالي','العربون','المتبقي','الحالة','ملاحظات']];
+  sortDocs(S.invoices.filter(i=>!i.sample)).forEach(i=>{const t=calc(i);rows.push([docName(i),docNo(i),i.date,i.due||'',i.client||'',i.cphone||'',t.sub,t.disc,t.vat,t.total,t.dep,isQ(i)?'':owed(i),isQ(i)?'':(i.status==='paid'?'مدفوعة':overdue(i)?'متأخرة':st[i.status]||'غير مدفوعة'),i.notes||''])});
+  const csv='﻿'+rows.map(r=>r.map(q).join(',')).join('\r\n');
+  const name=`fatoorti-${today()}.csv`,f=new File([csv],name,{type:'text/csv'});
+  if(NATIVE){nativeShare(f,name,'فواتير فاتورتي').catch(()=>{});return}
+  if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f]}).catch(()=>{});return}
+  const u=URL.createObjectURL(f),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),6e4);toast('تم تصدير الملف');
+}
+
+/* ✍️ التوقيع والختم */
+function renderSig(){
+  const b=S.biz;
+  $('#app').innerHTML=`<div class="ptitle"><div><small>فاتورتي برو</small><h1>التوقيع والختم</h1></div><button class="btn ghost" id="sgBack" style="flex:0 0 auto">رجوع</button></div>
+   <div class="panel"><h3 style="margin-bottom:10px">وقّع بإصبعك</h3><canvas class="sigbox" id="sgPad" width="900" height="300"></canvas>
+    <div class="row" style="margin-top:10px"><button class="btn ghost" id="sgClr">مسح</button><button class="btn" id="sgSave">حفظ التوقيع</button></div></div>
+   <div class="panel"><h3 style="margin-bottom:10px">أو ارفع صورة الختم / التوقيع</h3>
+    <label class="btn ghost" for="sgFile" style="width:100%">🖼️ اختيار صورة</label><input id="sgFile" type="file" accept="image/*" hidden>
+    <p class="legal">الأفضل صورة بخلفية بيضاء أو شفافة</p></div>
+   ${b.sig?`<div class="panel" style="text-align:center"><h3 style="margin-bottom:10px">الحالي</h3><img src="${b.sig}" alt="" style="max-height:120px;background:#fff;border-radius:12px;padding:8px">
+    <label style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:10px;font-weight:700"><input type="checkbox" id="sgShow" ${b.sigOff?'':'checked'}> يطلع على الفواتير</label>
+    <button class="btn ghost" id="sgDel" style="margin-top:10px;color:var(--late)">حذف</button></div>`:''}`;
+  const cv=$('#sgPad'),x=cv.getContext('2d');let drawn=false,last=null;
+  x.lineWidth=6;x.lineCap='round';x.lineJoin='round';x.strokeStyle='#14204a';
+  const pt=e=>{const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
+  cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);last=pt(e)};
+  cv.onpointermove=e=>{if(!last)return;const p=pt(e);x.beginPath();x.moveTo(...last);x.lineTo(...p);x.stroke();last=p;drawn=true};
+  cv.onpointerup=cv.onpointercancel=()=>{last=null};
+  $('#sgClr').onclick=()=>{x.clearRect(0,0,cv.width,cv.height);drawn=false};
+  $('#sgSave').onclick=()=>{if(!drawn)return toast('وقّع في المربع أول');S.biz.sig=trimSig(cv);S.biz.sigOff=false;save();toast('تم حفظ التوقيع ✓');renderSig()};
+  $('#sgFile').onchange=e=>readLogo(e.target.files[0],u=>{S.biz.sig=u;S.biz.sigOff=false;save();toast('تم حفظ الختم ✓');renderSig()});
+  $('#sgShow')&&($('#sgShow').onchange=e=>{S.biz.sigOff=!e.target.checked;save()});
+  $('#sgDel')&&($('#sgDel').onclick=()=>{S.biz.sig='';save();toast('تم الحذف');renderSig()});
+  $('#sgBack').onclick=()=>{view='more';render()};
+}
+function trimSig(cv){const d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data;let a=cv.width,b=cv.height,c=0,e=0;
+  for(let y=0;y<cv.height;y++)for(let x=0;x<cv.width;x++)if(d[(y*cv.width+x)*4+3]>10){if(x<a)a=x;if(x>c)c=x;if(y<b)b=y;if(y>e)e=y}
+  const p=12;a=Math.max(0,a-p);b=Math.max(0,b-p);c=Math.min(cv.width,c+p);e=Math.min(cv.height,e+p);
+  const o=document.createElement('canvas');o.width=c-a;o.height=e-b;o.getContext('2d').drawImage(cv,a,b,c-a,e-b,0,0,c-a,e-b);return o.toDataURL('image/png')}
+let BOT=0,SIGAT=null;
+async function drawSig(x,c,H){const b=S.biz;if(!isPro()||!b.sig||b.sigOff)return;const im=await loadImg(b.sig);if(!im)return;
+  const L=110,maxW=330,maxH=150,s=Math.min(maxW/im.width,maxH/im.height,1.6),w=im.width*s,h=im.height*s;
+  if(SIGAT){const s2=Math.min(SIGAT.w/im.width,140/im.height,1.6),w2=im.width*s2,h2=im.height*s2;x.drawImage(im,SIGAT.x+(SIGAT.w-w2)/2,SIGAT.base-h2,w2,h2);return}
+  const base=Math.min(BOT||H-120,H-120)-40;
+  x.drawImage(im,L+(maxW-w)/2,base-h-50,w,h);
+  x.fillStyle=c['--pm'];x.fillRect(L,base-36,maxW,2);
+  x.font=`600 26px ${BF}`;x.fillStyle=c['--pm'];x.textAlign='center';x.direction='rtl';x.fillText('التوقيع / الختم',L+maxW/2,base);
+}
+
 if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 let lastTab=null;
 function render(){
   if(TABS.some(t=>t[0]===view)&&view!==lastTab){search='';editP=null;lastTab=view}
-  ({ob:renderOb,home:renderHome,edit:renderEdit,view:renderView,clients:renderClients,client:renderClient,products:renderProducts,reports:renderReports,more:renderMore})[view]();
+  ({ob:renderOb,home:renderHome,edit:renderEdit,view:renderView,clients:renderClients,client:renderClient,products:renderProducts,reports:renderReports,more:renderMore,pro:renderPro,sig:renderSig})[view]();
   tabbar();window.scrollTo(0,0)}
+initPro();if(isPro()){scheduleNotifs();autoBackup()}
 render();
 </script>
 </body>
